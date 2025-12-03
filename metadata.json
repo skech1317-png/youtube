@@ -1,0 +1,5 @@
+{
+  "name": "AI YouTube Script MVP",
+  "description": "A functional MVP for YouTube script writing. Users input an existing script, get AI-suggested topics, and generate new scripts based on those topics. Data persists in LocalStorage.",
+  "requestFramePermissions": []
+}
