@@ -41,15 +41,24 @@ export const suggestTopicsFromScript = async (script: string): Promise<string[]>
   }
 };
 
-// 2. 대본 작성 함수
-export const generateScriptForTopic = async (topic: string, originalContext: string): Promise<string> => {
+// 2. 대본 작성 함수 (히스토리 참고 기능 추가)
+export const generateScriptForTopic = async (
+  topic: string, 
+  originalContext: string,
+  historyContext?: string
+): Promise<string> => {
   try {
+    const historyPrompt = historyContext 
+      ? `\n\n[참고용 과거 대본 스타일]\n${historyContext}\n위 스타일을 참고하되, 주제에 맞게 새롭게 작성해주세요.`
+      : '';
+
     const response = await ai.models.generateContent({
       model: MODEL_NAME,
       contents: `다음 주제로 유튜브 영상 대본을 작성해줘.
       
       주제: "${topic}"
       참고(이전 대본 맥락): "${originalContext.substring(0, 500)}..."
+      ${historyPrompt}
       
       형식:
       [오프닝] - 시청자의 주의를 끄는 멘트
