@@ -6,13 +6,15 @@ import {
   generateYadamScript,
   analyzeScriptAsPD,
   generateShortsScript,
-  generateImagePrompts
+  generateImagePrompts,
+  generateVideoTitle,
+  generateThumbnails
 } from './services/geminiService';
 
 const App: React.FC = () => {
   // State
   const [session, setSession] = useState<ScriptSession>(INITIAL_SESSION);
-  const [loading, setLoading] = useState<'IDLE' | 'SUGGESTING' | 'GENERATING' | 'ANALYZING' | 'SHORTS' | 'IMAGE_PROMPTS'>('IDLE');
+  const [loading, setLoading] = useState<'IDLE' | 'SUGGESTING' | 'GENERATING' | 'ANALYZING' | 'SHORTS' | 'IMAGE_PROMPTS' | 'TITLE' | 'THUMBNAILS'>('IDLE');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState<boolean>(false);
   const [compareMode, setCompareMode] = useState<boolean>(false);
@@ -34,6 +36,8 @@ const App: React.FC = () => {
           analysis: parsed.analysis ?? null,
           shortsScripts: parsed.shortsScripts ?? [],
           imagePrompts: parsed.imagePrompts ?? [],
+          videoTitle: parsed.videoTitle ?? null,
+          thumbnails: parsed.thumbnails ?? [],
         });
       } catch (e) {
         console.error("Failed to load session");
@@ -163,6 +167,55 @@ const App: React.FC = () => {
       alert(`숏츠 대본 생성 완료! (${shortsData.duration}초)`);
     } catch (e) {
       setErrorMsg("숏츠 생성 실패: 잠시 후 다시 시도해주세요.");
+    } finally {
+      setLoading('IDLE');
+    }
+  };
+
+  // 제목 생성
+  const handleGenerateTitle = async () => {
+    if (!session.generatedNewScript) {
+      setErrorMsg("먼저 대본을 생성해주세요.");
+      return;
+    }
+
+    setLoading('TITLE');
+    setErrorMsg(null);
+
+    try {
+      const title = await generateVideoTitle(session.generatedNewScript);
+      setSession(prev => ({
+        ...prev,
+        videoTitle: title,
+      }));
+    } catch (e) {
+      setErrorMsg("제목 생성 실패: 잠시 후 다시 시도해주세요.");
+    } finally {
+      setLoading('IDLE');
+    }
+  };
+
+  // 썸네일 프롬프트 생성
+  const handleGenerateThumbnails = async () => {
+    if (!session.generatedNewScript) {
+      setErrorMsg("먼저 대본을 생성해주세요.");
+      return;
+    }
+
+    const title = session.videoTitle || session.selectedTopic || "조선시대 야담";
+
+    setLoading('THUMBNAILS');
+    setErrorMsg(null);
+
+    try {
+      const thumbnails = await generateThumbnails(session.generatedNewScript, title);
+      setSession(prev => ({
+        ...prev,
+        thumbnails: thumbnails,
+      }));
+      alert(`${thumbnails.length}개의 썸네일 프롬프트가 생성되었습니다!`);
+    } catch (e) {
+      setErrorMsg("썸네일 생성 실패: 잠시 후 다시 시도해주세요.");
     } finally {
       setLoading('IDLE');
     }
@@ -448,6 +501,20 @@ const App: React.FC = () => {
                   >
                     {loading === 'IMAGE_PROMPTS' ? '생성 중...' : '🎨 이미지 프롬프트'}
                   </button>
+                  <button
+                    onClick={handleGenerateTitle}
+                    disabled={loading === 'TITLE'}
+                    className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded transition-colors disabled:bg-gray-400"
+                  >
+                    {loading === 'TITLE' ? '생성 중...' : '📝 제목 생성'}
+                  </button>
+                  <button
+                    onClick={handleGenerateThumbnails}
+                    disabled={loading === 'THUMBNAILS'}
+                    className="text-xs bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1 rounded transition-colors disabled:bg-gray-400"
+                  >
+                    {loading === 'THUMBNAILS' ? '생성 중...' : '🖼️ 썸네일 3개'}
+                  </button>
                   {session.isEditMode && (
                     <button
                       onClick={saveEditedScript}
@@ -485,6 +552,82 @@ const App: React.FC = () => {
                   </pre>
                 </div>
               )}
+            </section>
+          )}
+
+          {/* 제목 표시 */}
+          {session.videoTitle && (
+            <section className="border-t border-gray-100 pt-6 animate-fade-in">
+              <div className="bg-indigo-50 p-6 rounded-lg border-2 border-indigo-200">
+                <div className="flex justify-between items-center mb-3">
+                  <h3 className="text-lg font-bold text-indigo-800">📝 추천 제목</h3>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(session.videoTitle!);
+                      alert('제목이 복사되었습니다!');
+                    }}
+                    className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded"
+                  >
+                    📋 복사
+                  </button>
+                </div>
+                <p className="text-2xl font-bold text-gray-800">{session.videoTitle}</p>
+              </div>
+            </section>
+          )}
+
+          {/* 썸네일 프롬프트 */}
+          {session.thumbnails.length > 0 && (
+            <section className="border-t border-gray-100 pt-6 animate-fade-in">
+              <div className="flex justify-between items-center mb-4">
+                <label className="block text-sm font-bold text-gray-700">
+                  🖼️ 썸네일 프롬프트 ({session.thumbnails.length}개)
+                </label>
+                <button
+                  onClick={() => setSession(prev => ({ ...prev, thumbnails: [] }))}
+                  className="text-xs bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded"
+                >
+                  닫기
+                </button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {session.thumbnails.map((thumbnail) => (
+                  <div key={thumbnail.id} className="bg-gradient-to-br from-yellow-50 to-orange-50 p-4 rounded-lg border-2 border-yellow-300">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="flex-shrink-0 w-8 h-8 bg-yellow-600 text-white rounded-full flex items-center justify-center font-bold">
+                        {thumbnail.id}
+                      </span>
+                      <h4 className="font-bold text-gray-800 text-sm">{thumbnail.concept}</h4>
+                    </div>
+                    {thumbnail.textOverlay && (
+                      <div className="mb-2 p-2 bg-white rounded border border-yellow-400">
+                        <p className="text-xs text-gray-500">썸네일 텍스트:</p>
+                        <p className="font-bold text-red-600">{thumbnail.textOverlay}</p>
+                      </div>
+                    )}
+                    <div className="bg-black text-green-400 p-3 rounded font-mono text-xs overflow-x-auto">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-gray-400">Prompt:</span>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(thumbnail.prompt);
+                            alert('프롬프트가 복사되었습니다!');
+                          }}
+                          className="text-xs bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded"
+                        >
+                          📋 복사
+                        </button>
+                      </div>
+                      {thumbnail.prompt}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-xs text-yellow-800">
+                  💡 <strong>사용 방법:</strong> 각 프롬프트를 AI 이미지 생성 툴(Midjourney, DALL-E 등)에 복사하여 썸네일을 만드세요.
+                </p>
+              </div>
             </section>
           )}
 
@@ -557,7 +700,12 @@ const App: React.FC = () => {
                 {[...session.shortsScripts].reverse().map((shorts) => (
                   <div key={shorts.id} className="bg-pink-50 p-4 rounded-lg border-2 border-pink-200">
                     <div className="flex justify-between items-start mb-2">
-                      <h3 className="font-bold text-gray-800">{shorts.title}</h3>
+                      <div className="flex-1">
+                        <h3 className="font-bold text-gray-800">{shorts.title}</h3>
+                        {shorts.reference && (
+                          <p className="text-xs text-gray-500 mt-1">📚 참고: {shorts.reference}</p>
+                        )}
+                      </div>
                       <span className="text-xs bg-pink-600 text-white px-2 py-1 rounded">{shorts.duration}초</span>
                     </div>
                     <pre className="whitespace-pre-wrap font-sans text-sm text-gray-700 leading-relaxed bg-white p-3 rounded border border-pink-200">

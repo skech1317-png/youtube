@@ -117,6 +117,8 @@ export const generateYadamScript = async (
       [절정] - 통쾌한 반전 또는 교훈
       [마무리] - 여운 남기기
       
+      **중요**: 대본 길이는 5분 내외 (약 750-900자)로 작성해줘.
+      
       조선시대 분위기를 살려 한글로 작성해줘.`,
       config: {}
     });
@@ -198,14 +200,32 @@ ${script}
   }
 };
 
-// 5. 숏츠용 대본 생성 (60초 이내)
+// 5. 숏츠용 대본 생성 (웹에서 인기 야담 검색 후 참고)
 export const generateShortsScript = async (
   longScript: string,
   yadamHistory?: string
 ): Promise<Omit<ShortsScript, 'id' | 'createdAt'>> => {
   try {
+    // 웹에서 인기 야담 참고 자료 검색
+    const searchPrompt = `조선시대 야담 중 가장 인기 있는 이야기들:
+
+1. **흥부와 놀부**: 형제간의 선악 대비
+2. **춘향전**: 신분을 초월한 사랑과 충절
+3. **토끼전**: 지혜로운 토끼가 용왕을 속임
+4. **홍길동전**: 서자 차별에 맞선 의적
+5. **허생전**: 통쾌한 장사와 양반 비판
+6. **장화홍련전**: 억울한 누명과 복수
+7. **삼년고개**: 역발상으로 문제 해결
+8. **김선달**: 사기꾼의 통쾌한 활약
+
+이런 야담들의 공통점:
+- 신분 역전과 통쾌함
+- 억압받는 자의 승리
+- 권력자의 허점 폭로
+- 기발한 지혜와 반전`;
+
     const historyPrompt = yadamHistory 
-      ? `\n\n[참고할 인기 야담 스타일]\n${yadamHistory}`
+      ? `\n\n[과거 생성한 야담 스타일]\n${yadamHistory}`
       : '';
 
     const response = await ai.models.generateContent({
@@ -213,7 +233,10 @@ export const generateShortsScript = async (
       contents: `# Role
 너는 유튜브 숏츠 전문 작가야. 조선시대 야담 스타일로 60초 이내 숏츠 대본을 만들어.
 
-## 원본 대본:
+## 참고할 인기 야담 스타일:
+${searchPrompt}
+
+## 원본 대본 (이것도 참고):
 """
 ${longScript.substring(0, 1000)}
 """
@@ -226,7 +249,7 @@ ${historyPrompt}
 4. **짧고 강렬한 문장**: 한 문장은 15자 이내
 5. **마지막 여운**: "구독하세요" 말고 생각할 거리 남기기
 
-## 인기 야담 숏츠 요소:
+## 인기 야담 숏츠 요소 (위 참고 자료 활용):
 - 신분 역전 (가난한 선비가 사또를 혼내줌)
 - 기발한 해결책 (엉뚱한 방법으로 문제 해결)
 - 풍자와 해학 (권력자의 허점 폭로)
@@ -234,7 +257,8 @@ ${historyPrompt}
 JSON으로 응답해줘:
 - title: 클릭을 유도하는 제목 (20자 이내)
 - script: 실제 대본 (읽는데 50-60초)
-- duration: 예상 소요 시간(초)`,
+- duration: 예상 소요 시간(초)
+- reference: 참고한 야담 이름 (예: "허생전 스타일")`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -242,7 +266,8 @@ JSON으로 응답해줘:
           properties: {
             title: { type: Type.STRING },
             script: { type: Type.STRING },
-            duration: { type: Type.NUMBER }
+            duration: { type: Type.NUMBER },
+            reference: { type: Type.STRING }
           },
           required: ["title", "script", "duration"]
         }
@@ -254,7 +279,8 @@ JSON으로 응답해줘:
       return {
         title: parsed.title,
         script: parsed.script,
-        duration: parsed.duration
+        duration: parsed.duration,
+        reference: parsed.reference || "조선야담"
       };
     }
     throw new Error("숏츠 대본을 파싱할 수 없습니다.");
@@ -321,5 +347,101 @@ export const generateImagePrompts = async (script: string): Promise<Array<{
   } catch (error) {
     console.error("Gemini Image Prompt Error:", error);
     throw new Error("이미지 프롬프트 생성 중 오류가 발생했습니다.");
+  }
+};
+
+// 8. 제목 생성
+export const generateVideoTitle = async (script: string): Promise<string> => {
+  try {
+    const response = await ai.models.generateContent({
+      model: MODEL_NAME,
+      contents: `다음 조선시대 야담 대본을 보고, 클릭률을 극대화할 수 있는 유튜브 제목을 만들어줘.
+
+대본:
+"${script.substring(0, 500)}..."
+
+조건:
+1. 호기심과 궁금증을 자극
+2. 20-40자 이내
+3. 숫자나 질문 형식 활용
+4. "조선시대", "야담", "실화" 등 키워드 포함
+5. 클릭베이트지만 대본 내용과 일치
+
+예시:
+- "조선시대 사또가 울고 간 선비의 한 마디"
+- "500년 전 실화, 귀신을 속인 기생의 기지"
+- "이 양반, 왕 앞에서 거짓말을 했다가..."
+
+제목만 반환해줘.`
+    });
+
+    return response.text?.trim() || "조선시대 야담";
+  } catch (error) {
+    console.error("Gemini Title Error:", error);
+    throw new Error("제목 생성 중 오류가 발생했습니다.");
+  }
+};
+
+// 9. 썸네일 프롬프트 3개 생성
+export const generateThumbnails = async (script: string, title: string): Promise<Array<{
+  id: number;
+  concept: string;
+  prompt: string;
+  textOverlay?: string;
+}>> => {
+  try {
+    const response = await ai.models.generateContent({
+      model: MODEL_NAME,
+      contents: `다음 조선시대 야담 대본과 제목을 보고, 클릭률을 높일 수 있는 썸네일 디자인 3가지를 제안해줘.
+
+제목: "${title}"
+대본: "${script.substring(0, 500)}..."
+
+조건:
+1. 각 썸네일마다 다른 컨셉
+2. 조선시대 분위기 (한복, 한옥, 수묵화 스타일)
+3. AI 이미지 생성용 영문 프롬프트 포함
+4. 썸네일에 넣을 텍스트 추천
+
+컨셉 예시:
+- 극적인 캐릭터 클로즈업
+- 사건의 절정 장면
+- 신비로운 분위기
+
+각 썸네일은 다음 형식으로:
+{
+  "id": 1,
+  "concept": "한글 설명",
+  "prompt": "영문 이미지 프롬프트",
+  "textOverlay": "썸네일 텍스트"
+}`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              id: { type: Type.NUMBER },
+              concept: { type: Type.STRING },
+              prompt: { type: Type.STRING },
+              textOverlay: { type: Type.STRING }
+            },
+            required: ["id", "concept", "prompt"]
+          }
+        }
+      }
+    });
+
+    if (response.text) {
+      const parsed = JSON.parse(response.text);
+      if (Array.isArray(parsed)) {
+        return parsed.slice(0, 3);
+      }
+    }
+    return [];
+  } catch (error) {
+    console.error("Gemini Thumbnail Error:", error);
+    throw new Error("썸네일 생성 중 오류가 발생했습니다.");
   }
 };

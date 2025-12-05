@@ -12,6 +12,8 @@ export interface GeneratedScript {
   topic: string;
   script: string;
   timestamp: number;
+  title?: string; // 추천 제목
+  thumbnails?: ThumbnailPrompt[]; // 썸네일 프롬프트
 }
 
 // 대본 분석 결과 (PD 페르소나)
@@ -38,6 +40,7 @@ export interface ShortsScript {
   script: string; // 60초 이내 대본
   duration: number; // 예상 초
   createdAt: number;
+  reference?: string; // 참고한 웹 야담 출처
 }
 
 // 문장별 이미지 프롬프트
@@ -46,6 +49,14 @@ export interface ImagePrompt {
   imagePrompt: string; // AI 이미지 생성용 프롬프트 (영문)
   koreanDescription: string; // 한글 설명
   sceneNumber: number; // 장면 번호
+}
+
+// 썸네일 프롬프트
+export interface ThumbnailPrompt {
+  id: number;
+  concept: string; // 한글 컨셉 설명
+  prompt: string; // 영문 이미지 프롬프트
+  textOverlay?: string; // 썸네일에 넣을 텍스트
 }
 
 export interface ScriptSession {
@@ -60,6 +71,8 @@ export interface ScriptSession {
   analysis: ScriptAnalysis | null; // PD 분석 결과
   shortsScripts: ShortsScript[]; // 숏츠 대본들
   imagePrompts: ImagePrompt[]; // 문장별 이미지 프롬프트
+  videoTitle: string | null; // 생성된 제목
+  thumbnails: ThumbnailPrompt[]; // 썸네일 프롬프트들
 }
 
 export const INITIAL_SESSION: ScriptSession = {
@@ -73,6 +86,8 @@ export const INITIAL_SESSION: ScriptSession = {
   analysis: null,
   shortsScripts: [],
   imagePrompts: [],
+  videoTitle: null,
+  thumbnails: [],
 };
 
 export interface TodoItem {
