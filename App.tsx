@@ -483,30 +483,81 @@ const App: React.FC = () => {
         <main className="p-8 space-y-8">
           
           {/* API 키 입력 */}
-          <section className="bg-yellow-50 p-5 rounded-lg border-2 border-yellow-300 mb-4">
-            <div className="flex items-start gap-3 mb-3">
-              <span className="text-2xl">🔑</span>
+          <section className="bg-gradient-to-r from-red-50 to-orange-50 p-6 rounded-xl border-4 border-red-400 mb-6 shadow-lg">
+            <div className="flex items-start gap-4">
+              <span className="text-4xl">🔑</span>
               <div className="flex-1">
-                <label className="block text-sm font-bold text-gray-800 mb-2">
-                  Gemini API 키 설정 (필수)
+                <label className="block text-xl font-bold text-red-800 mb-3">
+                  ⚠️ API 키 입력 필수 ⚠️
                 </label>
-                <input
-                  type="password"
-                  placeholder="여기에 Gemini API 키를 입력하세요"
-                  value={session.apiKey}
-                  onChange={(e) => setSession(prev => ({ ...prev, apiKey: e.target.value }))}
-                  className="w-full p-3 border-2 border-yellow-400 rounded-lg focus:border-yellow-600 focus:ring-2 focus:ring-yellow-200 transition-all font-mono text-sm"
-                />
-                <p className="text-xs text-gray-600 mt-2">
-                  💡 API 키는 브라우저에만 저장되며 외부로 전송되지 않습니다. 
-                  <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline ml-1 font-semibold">
-                    무료 API 키 발급받기 →
+                <div className="bg-white p-4 rounded-lg border-2 border-red-300 mb-3">
+                  <input
+                    type="password"
+                    placeholder="여기에 본인의 Gemini API 키를 입력하세요"
+                    value={session.apiKey}
+                    onChange={(e) => setSession(prev => ({ ...prev, apiKey: e.target.value }))}
+                    className="w-full p-4 border-2 border-red-400 rounded-lg focus:border-red-600 focus:ring-2 focus:ring-red-200 transition-all font-mono text-base"
+                  />
+                </div>
+                {!session.apiKey && (
+                  <div className="bg-red-100 border-2 border-red-400 rounded-lg p-4 mb-3">
+                    <p className="text-red-800 font-bold text-sm mb-2">
+                      ❌ API 키를 입력하지 않으면 모든 기능이 차단됩니다!
+                    </p>
+                    <p className="text-red-700 text-xs">
+                      • 각 사용자는 자신의 API 키를 발급받아 사용해야 합니다<br/>
+                      • API 사용 비용은 각자 본인이 부담합니다<br/>
+                      • 다른 사람의 API 키를 사용하지 마세요
+                    </p>
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <a 
+                    href="https://aistudio.google.com/apikey" 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-all inline-flex items-center gap-2"
+                  >
+                    🆓 무료 API 키 발급받기 (1분 소요) →
                   </a>
+                  {session.apiKey && (
+                    <span className="text-green-600 font-bold flex items-center gap-2">
+                      ✅ API 키 입력 완료
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-gray-600 mt-3">
+                  💡 API 키는 브라우저에만 저장되며 외부로 전송되지 않습니다.
                 </p>
               </div>
             </div>
           </section>
 
+          {/* API 키 없으면 차단 오버레이 */}
+          {!session.apiKey && (
+            <div className="bg-gray-100 border-4 border-gray-400 rounded-xl p-12 text-center mb-6">
+              <div className="text-6xl mb-4">🔒</div>
+              <h2 className="text-2xl font-bold text-gray-800 mb-4">
+                API 키를 먼저 입력해주세요
+              </h2>
+              <p className="text-gray-600 mb-6">
+                위의 노란색 섹션에서 본인의 Gemini API 키를 입력하면<br/>
+                모든 기능을 사용할 수 있습니다.
+              </p>
+              <a 
+                href="https://aistudio.google.com/apikey" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-8 rounded-lg text-lg"
+              >
+                🆓 무료 API 키 발급받기 →
+              </a>
+            </div>
+          )}
+
+          {/* API 키가 있을 때만 나머지 UI 표시 */}
+          {session.apiKey && (
+            <>
           {/* STEP 0: 대본 스타일 선택 */}
           <section className="bg-blue-50 p-4 rounded-lg border-2 border-blue-200">
             <label className="block text-sm font-bold text-gray-700 mb-2">
@@ -1251,6 +1302,8 @@ ${plan.uploadSchedule}
                 </p>
               </div>
             </section>
+          )}
+          </>
           )}
         </main>
 
