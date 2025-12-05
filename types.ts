@@ -79,6 +79,7 @@ export interface ScriptSession {
   selectedTopic: string | null;
   generatedNewScript: string | null;
   // 새로운 필드들
+  apiKey: string; // 사용자 Gemini API 키
   isEditMode: boolean; // 대본 편집 모드
   generatedScripts: GeneratedScript[]; // 여러 버전 비교용
   history: ScriptHistoryItem[]; // 대본 히스토리
@@ -95,6 +96,7 @@ export const INITIAL_SESSION: ScriptSession = {
   suggestedTopics: [],
   selectedTopic: null,
   generatedNewScript: null,
+  apiKey: '',
   isEditMode: false,
   generatedScripts: [],
   history: [],

@@ -1,15 +1,19 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { ChannelPlan } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 const MODEL_NAME = 'gemini-2.5-flash';
+
+// API 키를 받아서 AI 인스턴스 생성
+const getAI = (apiKey: string) => new GoogleGenAI({ apiKey });
 
 // 유튜브 채널 기획서 생성
 export const generateChannelPlan = async (
   script: string,
-  topic: string
+  topic: string,
+  apiKey: string
 ): Promise<Omit<ChannelPlan, 'id' | 'createdAt'>> => {
   try {
+    const ai = getAI(apiKey);
     const response = await ai.models.generateContent({
       model: MODEL_NAME,
       contents: `너는 유튜브 채널 기획 전문가야. 아래 조선시대 야담 대본과 주제를 분석하여 떡상할 수 있는 채널 기획서를 만들어줘.

@@ -32,11 +32,13 @@ const App: React.FC = () => {
         setSession({
           ...INITIAL_SESSION,
           ...parsed,
+          apiKey: parsed.apiKey ?? '',
           isEditMode: parsed.isEditMode ?? false,
           generatedScripts: parsed.generatedScripts ?? [],
           history: parsed.history ?? [],
           analysis: parsed.analysis ?? null,
           shortsScripts: parsed.shortsScripts ?? [],
+          channelPlans: parsed.channelPlans ?? [],
           imagePrompts: parsed.imagePrompts ?? [],
           videoTitle: parsed.videoTitle ?? null,
           thumbnails: parsed.thumbnails ?? [],
@@ -63,12 +65,16 @@ const App: React.FC = () => {
       setErrorMsg("대본이나 아이디어를 먼저 입력해주세요.");
       return;
     }
+    if (!session.apiKey.trim()) {
+      setErrorMsg("API 키를 먼저 입력해주세요.");
+      return;
+    }
     
     setLoading('SUGGESTING');
     setErrorMsg(null);
     
     try {
-      const topics = await suggestTopicsFromScript(session.originalScript);
+      const topics = await suggestTopicsFromScript(session.originalScript, session.apiKey);
       setSession(prev => ({ 
         ...prev, 
         suggestedTopics: topics,
@@ -94,8 +100,8 @@ const App: React.FC = () => {
       
       // 야담 스타일 또는 일반 스타일
       const script = scriptType === 'YADAM' 
-        ? await generateYadamScript(topic, session.originalScript, recentHistory)
-        : await generateScriptForTopic(topic, session.originalScript, recentHistory);
+        ? await generateYadamScript(topic, session.originalScript, session.apiKey, recentHistory)
+        : await generateScriptForTopic(topic, session.originalScript, session.apiKey, recentHistory);
       
       const newGeneratedScript = {
         topic,
@@ -129,7 +135,7 @@ const App: React.FC = () => {
     setErrorMsg(null);
 
     try {
-      const analysis = await analyzeScriptAsPD(session.generatedNewScript);
+      const analysis = await analyzeScriptAsPD(session.generatedNewScript, session.apiKey);
       setSession(prev => ({ ...prev, analysis }));
     } catch (e) {
       setErrorMsg("분석 실패: 잠시 후 다시 시도해주세요.");
@@ -155,7 +161,8 @@ const App: React.FC = () => {
     try {
       const improvedScript = await improveScriptWithAnalysis(
         session.generatedNewScript,
-        session.analysis
+        session.analysis,
+        session.apiKey
       );
       
       setSession(prev => ({ 
@@ -192,7 +199,7 @@ const App: React.FC = () => {
         .map(h => h.script)
         .join('\n---\n');
       
-      const shortsData = await generateShortsScript(session.generatedNewScript, yadamHistory);
+      const shortsData = await generateShortsScript(session.generatedNewScript, session.apiKey, yadamHistory);
       const newShorts = {
         ...shortsData,
         id: `shorts_${Date.now()}`,
@@ -223,7 +230,7 @@ const App: React.FC = () => {
     setErrorMsg(null);
 
     try {
-      const title = await generateVideoTitle(session.generatedNewScript);
+      const title = await generateVideoTitle(session.generatedNewScript, session.apiKey);
       setSession(prev => ({
         ...prev,
         videoTitle: title,
@@ -248,7 +255,7 @@ const App: React.FC = () => {
     setErrorMsg(null);
 
     try {
-      const thumbnails = await generateThumbnails(session.generatedNewScript, title);
+      const thumbnails = await generateThumbnails(session.generatedNewScript, title, session.apiKey);
       setSession(prev => ({
         ...prev,
         thumbnails: thumbnails,
@@ -272,7 +279,7 @@ const App: React.FC = () => {
     setErrorMsg(null);
 
     try {
-      const prompts = await generateImagePrompts(session.generatedNewScript);
+      const prompts = await generateImagePrompts(session.generatedNewScript, session.apiKey);
       setSession(prev => ({
         ...prev,
         imagePrompts: prompts,
@@ -280,6 +287,43 @@ const App: React.FC = () => {
       alert(`${prompts.length}개의 이미지 프롬프트가 생성되었습니다!`);
     } catch (e) {
       setErrorMsg("이미지 프롬프트 생성 실패: 잠시 후 다시 시도해주세요.");
+    } finally {
+      setLoading('IDLE');
+    }
+  };
+
+  // 채널 기획서 생성
+  const handleGeneratePlan = async () => {
+    if (!session.generatedNewScript) {
+      setErrorMsg("기획서를 만들 대본이 없습니다.");
+      return;
+    }
+
+    setLoading('PLANNING');
+    setErrorMsg(null);
+
+    try {
+      const topic = session.selectedTopic || session.videoTitle || "조선시대 야담";
+      const planData = await generateChannelPlan(
+        session.generatedNewScript,
+        topic,
+        session.apiKey
+      );
+      
+      const newPlan = {
+        ...planData,
+        id: `plan_${Date.now()}`,
+        createdAt: Date.now(),
+      };
+
+      setSession(prev => ({
+        ...prev,
+        channelPlans: [...prev.channelPlans, newPlan],
+      }));
+
+      alert('채널 기획서가 생성되었습니다!');
+    } catch (e) {
+      setErrorMsg("기획서 생성 실패: 잠시 후 다시 시도해주세요.");
     } finally {
       setLoading('IDLE');
     }
@@ -438,6 +482,31 @@ const App: React.FC = () => {
         
         <main className="p-8 space-y-8">
           
+          {/* API 키 입력 */}
+          <section className="bg-yellow-50 p-5 rounded-lg border-2 border-yellow-300 mb-4">
+            <div className="flex items-start gap-3 mb-3">
+              <span className="text-2xl">🔑</span>
+              <div className="flex-1">
+                <label className="block text-sm font-bold text-gray-800 mb-2">
+                  Gemini API 키 설정 (필수)
+                </label>
+                <input
+                  type="password"
+                  placeholder="여기에 Gemini API 키를 입력하세요"
+                  value={session.apiKey}
+                  onChange={(e) => setSession(prev => ({ ...prev, apiKey: e.target.value }))}
+                  className="w-full p-3 border-2 border-yellow-400 rounded-lg focus:border-yellow-600 focus:ring-2 focus:ring-yellow-200 transition-all font-mono text-sm"
+                />
+                <p className="text-xs text-gray-600 mt-2">
+                  💡 API 키는 브라우저에만 저장되며 외부로 전송되지 않습니다. 
+                  <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline ml-1 font-semibold">
+                    무료 API 키 발급받기 →
+                  </a>
+                </p>
+              </div>
+            </div>
+          </section>
+
           {/* STEP 0: 대본 스타일 선택 */}
           <section className="bg-blue-50 p-4 rounded-lg border-2 border-blue-200">
             <label className="block text-sm font-bold text-gray-700 mb-2">
