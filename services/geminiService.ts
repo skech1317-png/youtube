@@ -457,7 +457,7 @@ export const generateVideoTitle = async (script: string): Promise<string> => {
   }
 };
 
-// 9. 썸네일 프롬프트 3개 생성
+// 9. 썸네일 프롬프트 3개 생성 (제목 + 대본 전체 분석)
 export const generateThumbnails = async (script: string, title: string): Promise<Array<{
   id: number;
   concept: string;
@@ -465,30 +465,41 @@ export const generateThumbnails = async (script: string, title: string): Promise
   textOverlay?: string;
 }>> => {
   try {
+    // 대본 전체를 분석하되, 너무 길면 핵심 부분만 (2000자)
+    const scriptSummary = script.length > 2000 ? script.substring(0, 2000) + '...' : script;
+    
     const response = await ai.models.generateContent({
       model: MODEL_NAME,
-      contents: `다음 조선시대 야담 대본과 제목을 보고, 클릭률을 높일 수 있는 썸네일 디자인 3가지를 제안해줘.
+      contents: `다음 조선시대 야담 대본과 제목을 분석하여, 클릭률을 극대화할 수 있는 썸네일 디자인 3가지를 제안해줘.
 
-제목: "${title}"
-대본: "${script.substring(0, 500)}..."
+# 제목
+"${title}"
 
-조건:
-1. 각 썸네일마다 다른 컨셉
-2. 조선시대 분위기 (한복, 한옥, 수묵화 스타일)
-3. AI 이미지 생성용 영문 프롬프트 포함
-4. 썸네일에 넣을 텍스트 추천
+# 대본 내용
+"""
+${scriptSummary}
+"""
 
-컨셉 예시:
-- 극적인 캐릭터 클로즈업
-- 사건의 절정 장면
-- 신비로운 분위기
+# 썸네일 제작 가이드
+대본의 핵심 내용, 등장인물, 사건의 절정을 분석하여 각각 다른 전략의 썸네일을 만들어줘.
 
-각 썸네일은 다음 형식으로:
+## 필수 조건
+1. **대본 내용 반영**: 제목만이 아니라 대본의 핵심 사건, 인물, 감정을 반영
+2. **3가지 다른 전략**:
+   - 전략1: 극적인 인물 표정/클로즈업 (감정 극대화)
+   - 전략2: 사건의 절정 장면 (긴장감 강조)
+   - 전략3: 신비롭거나 충격적인 비주얼 (호기심 자극)
+3. **조선시대 고증**: 한복, 한옥, 소품 등 시대적 배경 정확히
+4. **AI 이미지 생성용**: Midjourney/DALL-E 스타일 영문 프롬프트
+5. **텍스트 오버레이**: 클릭을 유도하는 짧고 강렬한 문구
+
+## 출력 형식
+각 썸네일은 다음 JSON 형식:
 {
   "id": 1,
-  "concept": "한글 설명",
-  "prompt": "영문 이미지 프롬프트",
-  "textOverlay": "썸네일 텍스트"
+  "concept": "전략 설명 (예: 주인공의 배신당한 순간 클로즈업)",
+  "prompt": "Korean historical drama, close-up portrait, betrayed expression, traditional hanbok...",
+  "textOverlay": "썸네일 텍스트 (예: 믿었던 친구의 배신)"
 }`,
       config: {
         responseMimeType: "application/json",
