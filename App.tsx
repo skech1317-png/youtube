@@ -465,7 +465,7 @@ const App: React.FC = () => {
                 {loading === 'SUGGESTING' ? (
                   <>
                     <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
-                    <span>AI 분석 중...</span>
+                    <span>대본 분석 중...</span>
                   </>
                 ) : (
                   <>
@@ -508,7 +508,10 @@ const App: React.FC = () => {
                         <span className="font-bold text-xl text-gray-800">{topic}</span>
                       </div>
                       {loading === 'GENERATING' && session.selectedTopic === topic ? (
-                        <div className="h-6 w-6 border-3 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+                        <div className="flex items-center gap-2">
+                          <div className="h-6 w-6 border-3 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+                          <span className="text-sm text-green-700 font-medium">대본 작성 중...</span>
+                        </div>
                       ) : (
                         <span className="text-green-600 text-xl">→</span>
                       )}
@@ -554,21 +557,21 @@ const App: React.FC = () => {
                     disabled={loading === 'TITLE'}
                     className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-lg transition-colors disabled:bg-gray-400 shadow-sm"
                   >
-                    {loading === 'TITLE' ? '⏳' : '📝 제목'}
+                    {loading === 'TITLE' ? '⏳ 생성중' : '📝 제목'}
                   </button>
                   <button
                     onClick={handleGenerateThumbnails}
                     disabled={loading === 'THUMBNAILS'}
                     className="text-xs bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-2 rounded-lg transition-colors disabled:bg-gray-400 shadow-sm"
                   >
-                    {loading === 'THUMBNAILS' ? '⏳' : '🖼️ 썸네일'}
+                    {loading === 'THUMBNAILS' ? '⏳ 생성중' : '🖼️ 썸네일'}
                   </button>
                   <button
                     onClick={handleGenerateImagePrompts}
                     disabled={loading === 'IMAGE_PROMPTS'}
                     className="text-xs bg-pink-600 hover:bg-pink-700 text-white px-3 py-2 rounded-lg transition-colors disabled:bg-gray-400 shadow-sm"
                   >
-                    {loading === 'IMAGE_PROMPTS' ? '⏳' : '👥 등장인물'}
+                    {loading === 'IMAGE_PROMPTS' ? '⏳ 분석중' : '👥 등장인물'}
                   </button>
                   {session.isEditMode && (
                     <button
@@ -583,14 +586,14 @@ const App: React.FC = () => {
                     disabled={loading === 'ANALYZING'}
                     className="text-xs bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg transition-colors disabled:bg-gray-400 shadow-sm"
                   >
-                    {loading === 'ANALYZING' ? '🔍' : '🎬 PD분석'}
+                    {loading === 'ANALYZING' ? '🔍 분석중' : '🎬 PD분석'}
                   </button>
                   <button
                     onClick={handleGenerateShorts}
                     disabled={loading === 'SHORTS'}
                     className="text-xs bg-pink-600 hover:bg-pink-700 text-white px-3 py-2 rounded-lg transition-colors disabled:bg-gray-400 shadow-sm"
                   >
-                    {loading === 'SHORTS' ? '⏳' : '📱 숏츠'}
+                    {loading === 'SHORTS' ? '⏳ 작성중' : '📱 숏츠'}
                   </button>
                 </div>
               </div>
