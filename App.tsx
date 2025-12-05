@@ -478,6 +478,79 @@ const App: React.FC = () => {
             {errorMsg && <p className="text-red-600 text-sm mt-3 bg-red-50 p-3 rounded-lg border border-red-200">{errorMsg}</p>}
           </section>
 
+          {/* 고정 버튼 바 - 항상 표시 */}
+          <section className="bg-white p-4 rounded-xl border-2 border-gray-300 shadow-md sticky top-4 z-10">
+            <div className="flex flex-wrap gap-2 justify-center">
+              <button
+                onClick={handleCopy}
+                disabled={!session.generatedNewScript}
+                className="text-xs bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
+              >
+                📋 복사
+              </button>
+              <button
+                onClick={handleDownload}
+                disabled={!session.generatedNewScript}
+                className="text-xs bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
+              >
+                💾 다운로드
+              </button>
+              <button
+                onClick={toggleEditMode}
+                disabled={!session.generatedNewScript}
+                className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
+              >
+                {session.isEditMode ? '📝 수정 중' : '✏️ 편집'}
+              </button>
+              {session.isEditMode && (
+                <button
+                  onClick={saveEditedScript}
+                  className="text-xs bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm font-medium"
+                >
+                  ✅ 저장
+                </button>
+              )}
+              <button
+                onClick={handleGenerateImagePrompts}
+                disabled={loading === 'IMAGE_PROMPTS' || !session.generatedNewScript}
+                className="text-xs bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
+              >
+                {loading === 'IMAGE_PROMPTS' ? '⏳ 분석중' : '👥 등장인물'}
+              </button>
+              <button
+                onClick={handleGenerateTitle}
+                disabled={loading === 'TITLE' || !session.generatedNewScript}
+                className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
+              >
+                {loading === 'TITLE' ? '⏳ 생성중' : '📝 제목'}
+              </button>
+              <button
+                onClick={handleGenerateThumbnails}
+                disabled={loading === 'THUMBNAILS' || !session.generatedNewScript}
+                className="text-xs bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
+              >
+                {loading === 'THUMBNAILS' ? '⏳ 생성중' : '🖼️ 썸네일'}
+              </button>
+              <button
+                onClick={handleAnalyze}
+                disabled={loading === 'ANALYZING' || !session.generatedNewScript}
+                className="text-xs bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
+              >
+                {loading === 'ANALYZING' ? '🔍 분석중' : '🎬 PD분석'}
+              </button>
+              <button
+                onClick={handleGenerateShorts}
+                disabled={loading === 'SHORTS' || !session.generatedNewScript}
+                className="text-xs bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
+              >
+                {loading === 'SHORTS' ? '⏳ 작성중' : '📱 숏츠'}
+              </button>
+            </div>
+            {!session.generatedNewScript && (
+              <p className="text-xs text-gray-500 text-center mt-2">💡 대본을 생성하면 버튼들이 활성화됩니다</p>
+            )}
+          </section>
+
           {/* STEP 2: Suggestions */}
           {session.suggestedTopics.length > 0 && (
             <section className="bg-gradient-to-br from-green-50 to-emerald-50 p-6 rounded-xl border-2 border-green-200 animate-fade-in">
@@ -532,73 +605,6 @@ const App: React.FC = () => {
                     ✨ 조선시대 야담 대본 완성!
                   </label>
                   <p className="text-sm text-gray-600">주제: {session.selectedTopic}</p>
-                </div>
-              </div>
-              
-              {/* 고정 버튼 영역 */}
-              <div className="bg-white p-4 rounded-xl border-2 border-purple-300 mb-4 shadow-sm">
-                <div className="flex flex-wrap gap-2 justify-center">
-                  <button
-                    onClick={handleCopy}
-                    className="text-xs bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm font-medium"
-                  >
-                    📋 복사
-                  </button>
-                  <button
-                    onClick={handleDownload}
-                    className="text-xs bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm font-medium"
-                  >
-                    💾 다운로드
-                  </button>
-                  <button
-                    onClick={toggleEditMode}
-                    className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm font-medium"
-                  >
-                    {session.isEditMode ? '📝 수정 중' : '✏️ 편집'}
-                  </button>
-                  {session.isEditMode && (
-                    <button
-                      onClick={saveEditedScript}
-                      className="text-xs bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm font-medium"
-                    >
-                      ✅ 저장
-                    </button>
-                  )}
-                  <button
-                    onClick={handleGenerateImagePrompts}
-                    disabled={loading === 'IMAGE_PROMPTS'}
-                    className="text-xs bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-lg transition-colors disabled:bg-gray-400 shadow-sm font-medium"
-                  >
-                    {loading === 'IMAGE_PROMPTS' ? '⏳ 분석중' : '👥 등장인물'}
-                  </button>
-                  <button
-                    onClick={handleGenerateTitle}
-                    disabled={loading === 'TITLE'}
-                    className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors disabled:bg-gray-400 shadow-sm font-medium"
-                  >
-                    {loading === 'TITLE' ? '⏳ 생성중' : '📝 제목'}
-                  </button>
-                  <button
-                    onClick={handleGenerateThumbnails}
-                    disabled={loading === 'THUMBNAILS'}
-                    className="text-xs bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg transition-colors disabled:bg-gray-400 shadow-sm font-medium"
-                  >
-                    {loading === 'THUMBNAILS' ? '⏳ 생성중' : '🖼️ 썸네일'}
-                  </button>
-                  <button
-                    onClick={handleAnalyze}
-                    disabled={loading === 'ANALYZING'}
-                    className="text-xs bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors disabled:bg-gray-400 shadow-sm font-medium"
-                  >
-                    {loading === 'ANALYZING' ? '🔍 분석중' : '🎬 PD분석'}
-                  </button>
-                  <button
-                    onClick={handleGenerateShorts}
-                    disabled={loading === 'SHORTS'}
-                    className="text-xs bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-lg transition-colors disabled:bg-gray-400 shadow-sm font-medium"
-                  >
-                    {loading === 'SHORTS' ? '⏳ 작성중' : '📱 숏츠'}
-                  </button>
                 </div>
               </div>
               
