@@ -7,12 +7,15 @@ const MODEL_NAME = 'gemini-2.5-flash';
 // 1. 주제 추천 함수
 export const suggestTopicsFromScript = async (script: string): Promise<string[]> => {
   try {
+    // 입력 대본이 너무 길면 앞부분만 사용 (비용 절감)
+    const trimmedScript = script.length > 2000 ? script.substring(0, 2000) + '...' : script;
+    
     const response = await ai.models.generateContent({
       model: MODEL_NAME,
       contents: `다음 유튜브 대본(또는 아이디어)을 분석해서, 이와 연관되거나 파생될 수 있는 흥미로운 유튜브 영상 주제 3가지를 추천해줘.
       
       입력된 대본:
-      "${script}"
+      "${trimmedScript}"
       
       조건:
       1. 한글로 작성할 것.
@@ -49,8 +52,13 @@ export const generateScriptForTopic = async (
   historyContext?: string
 ): Promise<string> => {
   try {
-    const historyPrompt = historyContext 
-      ? `\n\n[참고용 과거 대본 스타일]\n${historyContext}\n위 스타일을 참고하되, 주제에 맞게 새롭게 작성해주세요.`
+    // 히스토리도 길이 제한 (비용 절감)
+    const trimmedHistory = historyContext && historyContext.length > 1000 
+      ? historyContext.substring(0, 1000) + '...'
+      : historyContext;
+      
+    const historyPrompt = trimmedHistory 
+      ? `\n\n[참고용 과거 대본 스타일]\n${trimmedHistory}\n위 스타일을 참고하되, 주제에 맞게 새롭게 작성해주세요.`
       : '';
 
     const response = await ai.models.generateContent({
@@ -90,19 +98,32 @@ export const generateYadamScript = async (
     const inputLength = originalContext.length;
     let targetLength: string;
     
+    // 모든 경우에 10,000자 이하로 제한 (API 비용 절감)
     if (inputLength < 1000) {
-      // 입력이 짧으면 10,000자 내외로 확장
-      targetLength = "약 10,000자 내외 (충분히 상세하고 풍성하게)";
+      // 입력이 짧으면 적당히 확장하되 10,000자 이하
+      targetLength = "약 3,000~5,000자 내외 (적당히 상세하게)";
     } else if (inputLength < 5000) {
       // 중간 길이면 비슷하게 유지
-      targetLength = `약 ${inputLength}~${inputLength + 2000}자 내외`;
-    } else {
-      // 긴 대본이면 비슷하게 유지
+      targetLength = `약 ${inputLength}~${Math.min(inputLength + 1000, 8000)}자 내외`;
+    } else if (inputLength < 10000) {
+      // 10,000자 미만이면 그대로 유지
       targetLength = `약 ${inputLength}자 정도 (입력 대본과 비슷한 길이)`;
+    } else {
+      // 10,000자 이상이면 축약
+      targetLength = "약 8,000~10,000자 내외로 핵심만 간추려서";
     }
 
-    const historyPrompt = historyContext 
-      ? `\n\n[참고용 과거 야담 대본]\n${historyContext}`
+    // 히스토리와 원본 대본도 길이 제한 (비용 최적화)
+    const trimmedOriginal = originalContext.length > 3000 
+      ? originalContext.substring(0, 3000) + '...'
+      : originalContext;
+      
+    const trimmedHistory = historyContext && historyContext.length > 1000 
+      ? historyContext.substring(0, 1000) + '...'
+      : historyContext;
+      
+    const historyPrompt = trimmedHistory 
+      ? `\n\n[참고용 과거 야담 대본]\n${trimmedHistory}`
       : '';
 
     const response = await ai.models.generateContent({
@@ -110,9 +131,9 @@ export const generateYadamScript = async (
       contents: `너는 조선시대 야담 전문 스토리텔러야. 
       
       주제: "${topic}"
-      사용자가 입력한 대본 (${inputLength}자):
+      사용자가 입력한 대본:
       """
-      ${originalContext}
+      ${trimmedOriginal}
       """
       ${historyPrompt}
       
@@ -164,9 +185,9 @@ export const analyzeScriptAsPD = async (script: string): Promise<ScriptAnalysis>
 # Task
 다음 유튜브 대본을 분석해서, 시청자 이탈이 발생할 수 있는 치명적인 약점을 찾아내고 수정안을 제안해.
 
-## 대본:
+## 대본 (핵심 부분):
 """
-${script}
+${script.substring(0, 5000)}
 """
 
 # Analysis Criteria
@@ -260,7 +281,7 @@ ${searchPrompt}
 
 ## 원본 대본 (이것도 참고):
 """
-${longScript.substring(0, 1000)}
+${longScript.substring(0, 500)}
 """
 ${historyPrompt}
 
@@ -320,25 +341,39 @@ export const generateImagePrompts = async (script: string): Promise<Array<{
   sceneNumber: number;
 }>> => {
   try {
+    // 대본이 너무 길면 문장 단위로 분할 (최대 15개 핵심 문장만 추출)
+    const sentences = script
+      .split(/[.!?]\s+/)
+      .filter(s => s.trim().length > 10) // 너무 짧은 문장 제외
+      .slice(0, 10); // 최대 10개 문장만 처리 (비용 절감)
+    
+    const scriptSummary = sentences.join('. ') + '.';
+    
     const response = await ai.models.generateContent({
       model: MODEL_NAME,
-      contents: `너는 AI 이미지 생성 전문가야. 아래 대본의 각 문장을 분석하여, Midjourney/DALL-E/Stable Diffusion에서 사용할 수 있는 영문 이미지 프롬프트를 생성해줘.
+      contents: `너는 AI 이미지 생성 전문가야. 아래 조선시대 야담 대본의 핵심 문장들을 분석하여, Midjourney/DALL-E/Stable Diffusion에서 사용할 수 있는 영문 이미지 프롬프트를 생성해줘.
 
-대본:
-"${script}"
+대본 (핵심 문장):
+"${scriptSummary}"
 
 조건:
-1. 대본을 의미 단위로 문장별로 나눠서 분석
-2. 각 문장마다 시각적으로 표현 가능한 이미지 프롬프트 작성
-3. 프롬프트는 영문으로 작성 (예: "A traditional Korean scholar reading ancient books in a dim room, Joseon dynasty, ink painting style, cinematic lighting")
+1. 각 문장마다 시각적으로 강렬한 장면을 이미지 프롬프트로 변환
+2. 프롬프트는 영문으로 작성 (조선시대 분위기 강조)
+3. 스타일 키워드 포함: "Joseon dynasty", "traditional Korean", "cinematic", "detailed", "4K"
 4. 한글 설명도 함께 제공
 5. 장면 번호 부여 (1부터 시작)
+6. 각 프롬프트는 구체적이고 시각적으로 명확하게
+
+프롬프트 작성 팁:
+- 인물, 배경, 분위기, 스타일을 모두 명시
+- "A traditional Korean scholar in hanbok reading ancient scrolls in a candle-lit room, Joseon dynasty, dramatic lighting, cinematic composition, 4K, highly detailed"
+- 색감, 조명, 구도도 구체적으로 표현
 
 예시:
 {
   "sentence": "어느 날 선비가 책을 읽고 있었다.",
-  "imagePrompt": "A traditional Korean scholar reading ancient books in a dim room, Joseon dynasty, ink painting style, cinematic lighting, 4K, detailed",
-  "koreanDescription": "조선시대 선비가 어두운 방에서 고서를 읽는 모습, 수묵화 스타일",
+  "imagePrompt": "A traditional Korean scholar in white hanbok reading ancient books in a dim room, Joseon dynasty, warm candle lighting, wooden interior, ink painting atmosphere, cinematic composition, 4K, highly detailed",
+  "koreanDescription": "조선시대 흰 한복 입은 선비가 촛불 아래서 고서를 읽는 모습, 목조 건물 내부, 수묵화 분위기",
   "sceneNumber": 1
 }`,
       config: {
@@ -368,7 +403,7 @@ export const generateImagePrompts = async (script: string): Promise<Array<{
     return [];
   } catch (error) {
     console.error("Gemini Image Prompt Error:", error);
-    throw new Error("이미지 프롬프트 생성 중 오류가 발생했습니다.");
+    throw new Error("이미지 프롬프트 생성 중 오류가 발생했습니다. 대본이 너무 길 수 있습니다.");
   }
 };
 
