@@ -28,11 +28,11 @@ const App: React.FC = () => {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        // 이전 버전 호환성을 위해 새 필드 추가
+        // API 키는 절대 저장하지 않음 - 매번 새로 입력 필수
         setSession({
           ...INITIAL_SESSION,
           ...parsed,
-          apiKey: parsed.apiKey ?? '',
+          apiKey: '', // 보안: API 키는 절대 불러오지 않음
           isEditMode: parsed.isEditMode ?? false,
           generatedScripts: parsed.generatedScripts ?? [],
           history: parsed.history ?? [],
@@ -49,9 +49,11 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // Persistence: Save
+  // Persistence: Save (API 키 제외)
   useEffect(() => {
-    localStorage.setItem('mvp_script_session', JSON.stringify(session));
+    // 보안: API 키는 절대 저장하지 않음
+    const { apiKey, ...sessionWithoutApiKey } = session;
+    localStorage.setItem('mvp_script_session', JSON.stringify(sessionWithoutApiKey));
   }, [session]);
 
   // Handler: Update Input
