@@ -43,6 +43,20 @@ export interface ShortsScript {
   reference?: string; // 참고한 웹 야담 출처
 }
 
+// 유튜브 채널 기획서
+export interface ChannelPlan {
+  id: string;
+  topic: string; // 떡상 주제
+  targetAudience: string; // 타겟 시청자
+  contentStrategy: string; // 콘텐츠 전략
+  competitiveAdvantage: string; // 경쟁력
+  trendAnalysis: string; // 트렌드 분석
+  videoStructure: string; // 영상 구성안
+  monetizationPlan: string; // 수익화 방안
+  uploadSchedule: string; // 업로드 계획
+  createdAt: number;
+}
+
 // 문장별 이미지 프롬프트
 export interface ImagePrompt {
   sentence: string; // 원문 문장
@@ -70,6 +84,7 @@ export interface ScriptSession {
   history: ScriptHistoryItem[]; // 대본 히스토리
   analysis: ScriptAnalysis | null; // PD 분석 결과
   shortsScripts: ShortsScript[]; // 숏츠 대본들
+  channelPlans: ChannelPlan[]; // 채널 기획서들
   imagePrompts: ImagePrompt[]; // 문장별 이미지 프롬프트
   videoTitle: string | null; // 생성된 제목
   thumbnails: ThumbnailPrompt[]; // 썸네일 프롬프트들
@@ -81,6 +96,15 @@ export const INITIAL_SESSION: ScriptSession = {
   selectedTopic: null,
   generatedNewScript: null,
   isEditMode: false,
+  generatedScripts: [],
+  history: [],
+  analysis: null,
+  shortsScripts: [],
+  channelPlans: [],
+  imagePrompts: [],
+  videoTitle: null,
+  thumbnails: [],
+};
   generatedScripts: [],
   history: [],
   analysis: null,

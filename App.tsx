@@ -10,11 +10,12 @@ import {
   generateVideoTitle,
   generateThumbnails
 } from './services/geminiService';
+import { generateChannelPlan } from './services/planningService';
 
 const App: React.FC = () => {
   // State
   const [session, setSession] = useState<ScriptSession>(INITIAL_SESSION);
-  const [loading, setLoading] = useState<'IDLE' | 'SUGGESTING' | 'GENERATING' | 'ANALYZING' | 'SHORTS' | 'IMAGE_PROMPTS' | 'TITLE' | 'THUMBNAILS'>('IDLE');
+  const [loading, setLoading] = useState<'IDLE' | 'SUGGESTING' | 'GENERATING' | 'ANALYZING' | 'SHORTS' | 'IMAGE_PROMPTS' | 'TITLE' | 'THUMBNAILS' | 'PLANNING'>('IDLE');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState<boolean>(false);
   const [compareMode, setCompareMode] = useState<boolean>(false);
@@ -539,11 +540,11 @@ const App: React.FC = () => {
                 {loading === 'ANALYZING' ? '🔍 분석중' : '🎬 PD분석'}
               </button>
               <button
-                onClick={handleGenerateShorts}
-                disabled={loading === 'SHORTS' || !session.generatedNewScript}
-                className="text-xs bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
+                onClick={handleGeneratePlan}
+                disabled={loading === 'PLANNING' || !session.generatedNewScript}
+                className="text-xs bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
               >
-                {loading === 'SHORTS' ? '⏳ 작성중' : '📱 숏츠'}
+                {loading === 'PLANNING' ? '⏳ 기획중' : '📋 기획서'}
               </button>
             </div>
             {!session.generatedNewScript && (
@@ -768,6 +769,155 @@ const App: React.FC = () => {
               <div className="bg-red-600 text-white p-4 rounded-lg">
                 <h3 className="font-bold text-sm mb-2">🚨 당장 고쳐야 할 1가지</h3>
                 <p className="font-medium text-lg">{session.analysis.actionPlan}</p>
+              </div>
+            </section>
+          )}
+
+          {/* 채널 기획서 목록 */}
+          {session.channelPlans.length > 0 && (
+            <section className="border-t border-gray-100 pt-6 animate-fade-in">
+              <h2 className="text-lg font-bold text-gray-800 mb-4">📋 생성된 채널 기획서 ({session.channelPlans.length}개)</h2>
+              <div className="space-y-6">
+                {[...session.channelPlans].reverse().map((plan) => (
+                  <div key={plan.id} className="bg-gradient-to-br from-teal-50 to-cyan-50 p-6 rounded-xl border-2 border-teal-300 shadow-md">
+                    <div className="mb-4">
+                      <h3 className="text-2xl font-bold text-teal-800 mb-2">🎯 {plan.topic}</h3>
+                      <p className="text-xs text-gray-500">생성일: {new Date(plan.createdAt).toLocaleString('ko-KR')}</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* 타겟 시청자 */}
+                      <div className="bg-white p-4 rounded-lg border border-teal-200">
+                        <h4 className="font-bold text-teal-700 mb-2 flex items-center gap-2">
+                          <span>👥</span> 타겟 시청자
+                        </h4>
+                        <p className="text-sm text-gray-700 whitespace-pre-wrap">{plan.targetAudience}</p>
+                      </div>
+
+                      {/* 콘텐츠 전략 */}
+                      <div className="bg-white p-4 rounded-lg border border-teal-200">
+                        <h4 className="font-bold text-teal-700 mb-2 flex items-center gap-2">
+                          <span>🎬</span> 콘텐츠 전략
+                        </h4>
+                        <p className="text-sm text-gray-700 whitespace-pre-wrap">{plan.contentStrategy}</p>
+                      </div>
+
+                      {/* 경쟁력 */}
+                      <div className="bg-white p-4 rounded-lg border border-green-200">
+                        <h4 className="font-bold text-green-700 mb-2 flex items-center gap-2">
+                          <span>💪</span> 경쟁 우위
+                        </h4>
+                        <p className="text-sm text-gray-700 whitespace-pre-wrap">{plan.competitiveAdvantage}</p>
+                      </div>
+
+                      {/* 트렌드 분석 */}
+                      <div className="bg-white p-4 rounded-lg border border-orange-200">
+                        <h4 className="font-bold text-orange-700 mb-2 flex items-center gap-2">
+                          <span>📈</span> 트렌드 분석
+                        </h4>
+                        <p className="text-sm text-gray-700 whitespace-pre-wrap">{plan.trendAnalysis}</p>
+                      </div>
+
+                      {/* 영상 구성안 */}
+                      <div className="bg-white p-4 rounded-lg border border-purple-200">
+                        <h4 className="font-bold text-purple-700 mb-2 flex items-center gap-2">
+                          <span>🎞️</span> 영상 구성안
+                        </h4>
+                        <p className="text-sm text-gray-700 whitespace-pre-wrap">{plan.videoStructure}</p>
+                      </div>
+
+                      {/* 수익화 방안 */}
+                      <div className="bg-white p-4 rounded-lg border border-yellow-200">
+                        <h4 className="font-bold text-yellow-700 mb-2 flex items-center gap-2">
+                          <span>💰</span> 수익화 방안
+                        </h4>
+                        <p className="text-sm text-gray-700 whitespace-pre-wrap">{plan.monetizationPlan}</p>
+                      </div>
+
+                      {/* 업로드 계획 */}
+                      <div className="bg-white p-4 rounded-lg border border-blue-200 md:col-span-2">
+                        <h4 className="font-bold text-blue-700 mb-2 flex items-center gap-2">
+                          <span>📅</span> 업로드 일정
+                        </h4>
+                        <p className="text-sm text-gray-700 whitespace-pre-wrap">{plan.uploadSchedule}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2 mt-4">
+                      <button
+                        onClick={() => {
+                          const fullText = `
+🎯 채널 기획서: ${plan.topic}
+
+👥 타겟 시청자:
+${plan.targetAudience}
+
+🎬 콘텐츠 전략:
+${plan.contentStrategy}
+
+💪 경쟁 우위:
+${plan.competitiveAdvantage}
+
+📈 트렌드 분석:
+${plan.trendAnalysis}
+
+🎞️ 영상 구성안:
+${plan.videoStructure}
+
+💰 수익화 방안:
+${plan.monetizationPlan}
+
+📅 업로드 일정:
+${plan.uploadSchedule}
+                          `.trim();
+                          navigator.clipboard.writeText(fullText);
+                          alert('기획서가 복사되었습니다!');
+                        }}
+                        className="text-xs bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium"
+                      >
+                        📋 전체 복사
+                      </button>
+                      <button
+                        onClick={() => {
+                          const fullText = `
+🎯 채널 기획서: ${plan.topic}
+
+👥 타겟 시청자:
+${plan.targetAudience}
+
+🎬 콘텐츠 전략:
+${plan.contentStrategy}
+
+💪 경쟁 우위:
+${plan.competitiveAdvantage}
+
+📈 트렌드 분석:
+${plan.trendAnalysis}
+
+🎞️ 영상 구성안:
+${plan.videoStructure}
+
+💰 수익화 방안:
+${plan.monetizationPlan}
+
+📅 업로드 일정:
+${plan.uploadSchedule}
+                          `.trim();
+                          const blob = new Blob([fullText], { type: 'text/plain;charset=utf-8' });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = `채널기획서_${plan.topic.replace(/[^a-zA-Z0-9가-힣]/g, '_')}.txt`;
+                          a.click();
+                          URL.revokeObjectURL(url);
+                        }}
+                        className="text-xs bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium"
+                      >
+                        💾 다운로드
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             </section>
           )}
