@@ -668,7 +668,7 @@ const App: React.FC = () => {
                   <span className="w-10 h-10 bg-purple-600 text-white rounded-full flex items-center justify-center font-bold text-lg">4</span>
                   <div>
                     <p className="font-bold text-gray-800">🎉 완성!</p>
-                    <p className="text-sm text-gray-600">위 버튼들로 제목, 썸네일, 등장인물 프롬프트, 숏츠를 생성하세요</p>
+                    <p className="text-sm text-gray-600">위 버튼들로 제목, 썸네일, 등장인물, PD분석, 기획서를 생성하세요</p>
                   </div>
                 </div>
               </div>
@@ -980,8 +980,8 @@ ${plan.uploadSchedule}
             </section>
           )}
 
-          {/* 숏츠 대본 목록 */}
-          {session.shortsScripts.length > 0 && (
+          {/* 숏츠 대본 목록 - 기획서로 대체됨 */}
+          {false && session.shortsScripts.length > 0 && (
             <section className="border-t border-gray-100 pt-6 animate-fade-in">
               <h2 className="text-lg font-bold text-gray-800 mb-4">📱 생성된 숏츠 대본 ({session.shortsScripts.length}개)</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
