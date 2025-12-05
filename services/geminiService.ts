@@ -98,24 +98,24 @@ export const generateYadamScript = async (
     const inputLength = originalContext.length;
     let targetLength: string;
     
-    // 모든 경우에 10,000자 이하로 제한 (API 비용 절감)
+    // 대부분 8,000~10,000자 사이로 생성
     if (inputLength < 1000) {
-      // 입력이 짧으면 적당히 확장하되 10,000자 이하
-      targetLength = "약 3,000~5,000자 내외 (적당히 상세하게)";
-    } else if (inputLength < 5000) {
-      // 중간 길이면 비슷하게 유지
-      targetLength = `약 ${inputLength}~${Math.min(inputLength + 1000, 8000)}자 내외`;
-    } else if (inputLength < 10000) {
-      // 10,000자 미만이면 그대로 유지
-      targetLength = `약 ${inputLength}자 정도 (입력 대본과 비슷한 길이)`;
+      // 입력이 짧으면 8,000~10,000자로 확장
+      targetLength = "약 8,000~10,000자 내외 (충분히 상세하고 풍성하게)";
+    } else if (inputLength < 8000) {
+      // 8,000자 미만이면 8,000~10,000자로 확장
+      targetLength = "약 8,000~10,000자 내외 (상세하게 풍성하게 작성)";
+    } else if (inputLength <= 10000) {
+      // 8,000~10,000자 사이면 입력과 비슷하게 유지
+      targetLength = `약 ${inputLength}자 정도 (입력 대본과 비슷한 길이로)`;
     } else {
-      // 10,000자 이상이면 축약
-      targetLength = "약 8,000~10,000자 내외로 핵심만 간추려서";
+      // 10,000자 초과면 8,000~10,000자로 조정
+      targetLength = "약 8,000~10,000자 내외로 핵심을 유지하면서 간추려서";
     }
 
     // 히스토리와 원본 대본도 길이 제한 (비용 최적화)
-    const trimmedOriginal = originalContext.length > 3000 
-      ? originalContext.substring(0, 3000) + '...'
+    const trimmedOriginal = originalContext.length > 5000 
+      ? originalContext.substring(0, 5000) + '...\n(이하 생략, 전체 맥락을 참고하여 작성)'
       : originalContext;
       
     const trimmedHistory = historyContext && historyContext.length > 1000 
