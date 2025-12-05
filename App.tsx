@@ -17,6 +17,22 @@ const App: React.FC = () => {
   // State
   const [session, setSession] = useState<ScriptSession>(INITIAL_SESSION);
   const [loading, setLoading] = useState<'IDLE' | 'SUGGESTING' | 'GENERATING' | 'ANALYZING' | 'IMPROVING' | 'SHORTS' | 'IMAGE_PROMPTS' | 'TITLE' | 'THUMBNAILS' | 'PLANNING'>('IDLE');
+
+  // 로딩 메시지 헬퍼
+  const getLoadingMessage = () => {
+    switch (loading) {
+      case 'SUGGESTING': return '🔍 대본 DNA 분석 중...';
+      case 'GENERATING': return '✍️ 새로운 대본 작성 중...';
+      case 'TITLE': return '🎬 매력적인 제목 생성 중...';
+      case 'THUMBNAILS': return '🖼️ 클릭률 높은 썸네일 구상 중...';
+      case 'IMAGE_PROMPTS': return '👥 등장인물 이미지 생성 중...';
+      case 'ANALYZING': return '📊 PD 분석 중...';
+      case 'IMPROVING': return '🔧 대본 개선 중...';
+      case 'SHORTS': return '📱 숏츠 대본 제작 중...';
+      case 'PLANNING': return '📋 채널 기획서 작성 중...';
+      default: return null;
+    }
+  };
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState<boolean>(false);
   const [compareMode, setCompareMode] = useState<boolean>(false);
@@ -120,10 +136,36 @@ const App: React.FC = () => {
 
       // 히스토리에 자동 추가
       saveToHistory(topic, script, false);
+
+      // 대본 생성 완료 후 자동으로 제목, 썸네일, 등장인물 이미지 프롬프트 생성
+      await generateAllMetadata(script);
     } catch (e) {
       setErrorMsg("대본 생성 실패: 잠시 후 다시 시도해주세요.");
     } finally {
       setLoading('IDLE');
+    }
+  };
+
+  // 대본의 메타데이터 자동 생성 (제목, 썸네일, 등장인물)
+  const generateAllMetadata = async (script: string) => {
+    try {
+      // 1. 제목 생성
+      setLoading('TITLE');
+      const title = await generateVideoTitle(script, session.apiKey);
+      setSession(prev => ({ ...prev, videoTitle: title }));
+
+      // 2. 썸네일 프롬프트 생성 (제목 반영)
+      setLoading('THUMBNAILS');
+      const thumbnails = await generateThumbnails(script, title, session.apiKey);
+      setSession(prev => ({ ...prev, thumbnails }));
+
+      // 3. 등장인물 이미지 프롬프트 생성
+      setLoading('IMAGE_PROMPTS');
+      const imagePrompts = await generateImagePrompts(script, session.apiKey);
+      setSession(prev => ({ ...prev, imagePrompts }));
+    } catch (e) {
+      console.error('메타데이터 생성 실패:', e);
+      // 메타데이터 생성 실패는 치명적이지 않으므로 에러 메시지만 표시
     }
   };
 
@@ -575,6 +617,17 @@ const App: React.FC = () => {
           {/* API 키가 있을 때만 나머지 UI 표시 */}
           {session.apiKey && session.apiKey.trim().length > 0 && (
             <>
+          {/* 전체 로딩 상태 표시 */}
+          {loading !== 'IDLE' && (
+            <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-4 rounded-xl mb-6 shadow-lg animate-pulse">
+              <div className="flex items-center justify-center gap-3">
+                <div className="h-8 w-8 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
+                <span className="text-xl font-bold">{getLoadingMessage()}</span>
+              </div>
+              <p className="text-center text-sm mt-2 opacity-90">잠시만 기다려주세요...</p>
+            </div>
+          )}
+
           {/* STEP 0: 대본 스타일 선택 */}
           <section className="bg-blue-50 p-4 rounded-lg border-2 border-blue-200">
             <label className="block text-sm font-bold text-gray-700 mb-2">
@@ -757,10 +810,10 @@ const App: React.FC = () => {
                         <span className="text-2xl">📜</span>
                         <span className="font-bold text-xl text-gray-800">{topic}</span>
                       </div>
-                      {loading === 'GENERATING' && session.selectedTopic === topic ? (
+                      {(loading === 'GENERATING' || loading === 'TITLE' || loading === 'THUMBNAILS' || loading === 'IMAGE_PROMPTS') && session.selectedTopic === topic ? (
                         <div className="flex items-center gap-2">
                           <div className="h-6 w-6 border-3 border-green-600 border-t-transparent rounded-full animate-spin"></div>
-                          <span className="text-sm text-green-700 font-medium">대본 작성 중...</span>
+                          <span className="text-sm text-green-700 font-medium">{getLoadingMessage()}</span>
                         </div>
                       ) : (
                         <span className="text-green-600 text-xl">→</span>
@@ -883,6 +936,61 @@ const App: React.FC = () => {
               <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <p className="text-xs text-yellow-800">
                   💡 <strong>사용 방법:</strong> 각 프롬프트를 AI 이미지 생성 툴(Midjourney, DALL-E 등)에 복사하여 썸네일을 만드세요.
+                </p>
+              </div>
+            </section>
+          )}
+
+          {/* 등장인물 이미지 프롬프트 */}
+          {session.imagePrompts.length > 0 && (
+            <section className="border-t border-gray-100 pt-6 animate-fade-in">
+              <div className="flex justify-between items-center mb-4">
+                <label className="block text-sm font-bold text-gray-700">
+                  👥 등장인물 이미지 프롬프트 ({session.imagePrompts.length}명)
+                </label>
+                <button
+                  onClick={() => setSession(prev => ({ ...prev, imagePrompts: [] }))}
+                  className="text-xs bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded"
+                >
+                  닫기
+                </button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {session.imagePrompts.map((prompt, idx) => (
+                  <div key={idx} className="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 rounded-lg border-2 border-blue-300">
+                    <div className="mb-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-sm">
+                          {prompt.sceneNumber}
+                        </span>
+                        <h4 className="font-bold text-blue-800">{prompt.koreanDescription}</h4>
+                      </div>
+                      <div className="bg-white p-2 rounded border border-blue-200">
+                        <p className="text-xs text-gray-500 mb-1">대본 속 등장:</p>
+                        <p className="text-sm text-gray-700 italic">"{prompt.sentence}"</p>
+                      </div>
+                    </div>
+                    <div className="bg-black text-green-400 p-3 rounded font-mono text-xs overflow-x-auto">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-gray-400">AI Image Prompt:</span>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(prompt.imagePrompt);
+                            alert('프롬프트가 복사되었습니다!');
+                          }}
+                          className="text-xs bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded"
+                        >
+                          📋 복사
+                        </button>
+                      </div>
+                      {prompt.imagePrompt}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-xs text-blue-800">
+                  💡 <strong>사용 방법:</strong> 각 캐릭터의 프롬프트를 AI 이미지 생성 툴에 복사하여 일관된 캐릭터 이미지를 만드세요.
                 </p>
               </div>
             </section>
