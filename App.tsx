@@ -8,14 +8,15 @@ import {
   generateShortsScript,
   generateImagePrompts,
   generateVideoTitle,
-  generateThumbnails
+  generateThumbnails,
+  improveScriptWithAnalysis
 } from './services/geminiService';
 import { generateChannelPlan } from './services/planningService';
 
 const App: React.FC = () => {
   // State
   const [session, setSession] = useState<ScriptSession>(INITIAL_SESSION);
-  const [loading, setLoading] = useState<'IDLE' | 'SUGGESTING' | 'GENERATING' | 'ANALYZING' | 'SHORTS' | 'IMAGE_PROMPTS' | 'TITLE' | 'THUMBNAILS' | 'PLANNING'>('IDLE');
+  const [loading, setLoading] = useState<'IDLE' | 'SUGGESTING' | 'GENERATING' | 'ANALYZING' | 'IMPROVING' | 'SHORTS' | 'IMAGE_PROMPTS' | 'TITLE' | 'THUMBNAILS' | 'PLANNING'>('IDLE');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState<boolean>(false);
   const [compareMode, setCompareMode] = useState<boolean>(false);
@@ -132,6 +133,44 @@ const App: React.FC = () => {
       setSession(prev => ({ ...prev, analysis }));
     } catch (e) {
       setErrorMsg("분석 실패: 잠시 후 다시 시도해주세요.");
+    } finally {
+      setLoading('IDLE');
+    }
+  };
+
+  // PD 분석 기반 대본 개선
+  const handleImproveScript = async () => {
+    if (!session.generatedNewScript) {
+      setErrorMsg("개선할 대본이 없습니다.");
+      return;
+    }
+    if (!session.analysis) {
+      setErrorMsg("먼저 PD 분석을 실행해주세요.");
+      return;
+    }
+
+    setLoading('IMPROVING');
+    setErrorMsg(null);
+
+    try {
+      const improvedScript = await improveScriptWithAnalysis(
+        session.generatedNewScript,
+        session.analysis
+      );
+      
+      setSession(prev => ({ 
+        ...prev, 
+        generatedNewScript: improvedScript,
+      }));
+
+      // 개선된 대본을 히스토리에 추가
+      if (session.selectedTopic) {
+        saveToHistory(session.selectedTopic + ' (PD분석 개선)', improvedScript, true);
+      }
+
+      alert('PD 분석을 반영하여 대본이 개선되었습니다!');
+    } catch (e) {
+      setErrorMsg("대본 개선 실패: 잠시 후 다시 시도해주세요.");
     } finally {
       setLoading('IDLE');
     }
@@ -769,6 +808,25 @@ const App: React.FC = () => {
               <div className="bg-red-600 text-white p-4 rounded-lg">
                 <h3 className="font-bold text-sm mb-2">🚨 당장 고쳐야 할 1가지</h3>
                 <p className="font-medium text-lg">{session.analysis.actionPlan}</p>
+              </div>
+
+              {/* 대본 개선 버튼 */}
+              <div className="mt-4 flex justify-center">
+                <button
+                  onClick={handleImproveScript}
+                  disabled={loading === 'IMPROVING'}
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105"
+                >
+                  {loading === 'IMPROVING' ? (
+                    <span className="flex items-center gap-2">
+                      <span className="animate-spin">⚙️</span> 대본 개선중...
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      🔧 PD 분석 반영하여 대본 개선하기
+                    </span>
+                  )}
+                </button>
               </div>
             </section>
           )}

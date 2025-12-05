@@ -520,3 +520,77 @@ export const generateThumbnails = async (script: string, title: string): Promise
     throw new Error("썸네일 생성 중 오류가 발생했습니다.");
   }
 };
+
+// 9. PD 분석 결과 기반 대본 개선 함수
+export const improveScriptWithAnalysis = async (
+  originalScript: string,
+  analysis: ScriptAnalysis
+): Promise<string> => {
+  try {
+    // 분석 결과를 요약하여 프롬프트에 포함
+    const flawsSummary = analysis.logicalFlaws
+      .map((f, i) => `${i + 1}. [문제] ${f.issue}\n   [제안] ${f.suggestion}`)
+      .join('\n');
+    
+    const boringSummary = analysis.boringParts
+      .map((b, i) => `${i + 1}. [이탈위험] ${b.reason}`)
+      .join('\n');
+
+    const response = await ai.models.generateContent({
+      model: MODEL_NAME,
+      contents: `# Role
+너는 100만 구독자 유튜브 채널의 메인 시나리오 작가야.
+메인 PD의 분석 결과를 토대로 대본을 개선해야 해.
+
+# 원본 대본
+"""
+${originalScript}
+"""
+
+# PD 분석 결과
+## 후킹 점수: ${analysis.hookingScore}/10
+${analysis.hookingComment}
+
+## 논리적 허점
+${flawsSummary || '없음'}
+
+## 지루함 경보 구간
+${boringSummary || '없음'}
+
+## 종합 의견
+${analysis.overallComment}
+
+## 실행 계획
+${analysis.actionPlan}
+
+# Task
+위 PD 분석을 반영하여 대본을 개선해줘.
+
+## 개선 방향
+1. **후킹 강화**: 초반 30초 안에 시청자를 사로잡는 임팩트 있는 오프닝으로 수정
+2. **논리 보완**: 지적된 논리적 허점을 근거와 함께 보완
+3. **템포 조절**: 지루한 구간을 간결하게 정리하고, 긴장감 있는 전개로 수정
+4. **조선시대 야담 스타일 유지**: 기존 톤앤매너는 유지하되 완성도만 높임
+5. **길이 유지**: 원본 대본과 비슷한 길이(8,000-10,000자)로 작성
+
+응답은 개선된 대본만 출력해. 메타 설명이나 주석은 불필요해.`,
+      config: {
+        temperature: 0.8,
+        topP: 0.95
+      }
+    });
+
+    if (response.text) {
+      const improved = response.text.trim();
+      // 최소 길이 검증
+      if (improved.length < 3000) {
+        throw new Error("개선된 대본이 너무 짧습니다.");
+      }
+      return improved;
+    }
+    throw new Error("대본 개선 결과를 받을 수 없습니다.");
+  } catch (error) {
+    console.error("Script Improvement Error:", error);
+    throw new Error("대본 개선 중 오류가 발생했습니다.");
+  }
+};
