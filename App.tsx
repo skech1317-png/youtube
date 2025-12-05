@@ -1,14 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { ScriptSession, INITIAL_SESSION, ScriptHistoryItem } from './types';
-import { suggestTopicsFromScript, generateScriptForTopic } from './services/geminiService';
+import { 
+  suggestTopicsFromScript, 
+  generateScriptForTopic, 
+  generateYadamScript,
+  analyzeScriptAsPD,
+  generateShortsScript,
+  generateImagePrompts
+} from './services/geminiService';
 
 const App: React.FC = () => {
   // State
   const [session, setSession] = useState<ScriptSession>(INITIAL_SESSION);
-  const [loading, setLoading] = useState<'IDLE' | 'SUGGESTING' | 'GENERATING'>('IDLE');
+  const [loading, setLoading] = useState<'IDLE' | 'SUGGESTING' | 'GENERATING' | 'ANALYZING' | 'SHORTS' | 'IMAGE_PROMPTS'>('IDLE');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState<boolean>(false);
   const [compareMode, setCompareMode] = useState<boolean>(false);
+  const [scriptType, setScriptType] = useState<'NORMAL' | 'YADAM'>('YADAM'); // 기본값을 야담으로
 
   // Persistence: Load
   useEffect(() => {
@@ -23,6 +31,9 @@ const App: React.FC = () => {
           isEditMode: parsed.isEditMode ?? false,
           generatedScripts: parsed.generatedScripts ?? [],
           history: parsed.history ?? [],
+          analysis: parsed.analysis ?? null,
+          shortsScripts: parsed.shortsScripts ?? [],
+          imagePrompts: parsed.imagePrompts ?? [],
         });
       } catch (e) {
         console.error("Failed to load session");
@@ -74,7 +85,11 @@ const App: React.FC = () => {
     try {
       // 히스토리 참고용으로 최근 3개 대본 전달
       const recentHistory = session.history.slice(-3).map(h => h.script).join('\n---\n');
-      const script = await generateScriptForTopic(topic, session.originalScript, recentHistory);
+      
+      // 야담 스타일 또는 일반 스타일
+      const script = scriptType === 'YADAM' 
+        ? await generateYadamScript(topic, session.originalScript, recentHistory)
+        : await generateScriptForTopic(topic, session.originalScript, recentHistory);
       
       const newGeneratedScript = {
         topic,
@@ -92,6 +107,86 @@ const App: React.FC = () => {
       saveToHistory(topic, script, false);
     } catch (e) {
       setErrorMsg("대본 생성 실패: 잠시 후 다시 시도해주세요.");
+    } finally {
+      setLoading('IDLE');
+    }
+  };
+
+  // PD 분석 실행
+  const handleAnalyze = async () => {
+    if (!session.generatedNewScript) {
+      setErrorMsg("분석할 대본이 없습니다. 먼저 대본을 생성해주세요.");
+      return;
+    }
+
+    setLoading('ANALYZING');
+    setErrorMsg(null);
+
+    try {
+      const analysis = await analyzeScriptAsPD(session.generatedNewScript);
+      setSession(prev => ({ ...prev, analysis }));
+    } catch (e) {
+      setErrorMsg("분석 실패: 잠시 후 다시 시도해주세요.");
+    } finally {
+      setLoading('IDLE');
+    }
+  };
+
+  // 숏츠 생성
+  const handleGenerateShorts = async () => {
+    if (!session.generatedNewScript) {
+      setErrorMsg("숏츠를 만들 대본이 없습니다.");
+      return;
+    }
+
+    setLoading('SHORTS');
+    setErrorMsg(null);
+
+    try {
+      const yadamHistory = session.history
+        .slice(-3)
+        .map(h => h.script)
+        .join('\n---\n');
+      
+      const shortsData = await generateShortsScript(session.generatedNewScript, yadamHistory);
+      const newShorts = {
+        ...shortsData,
+        id: `shorts_${Date.now()}`,
+        createdAt: Date.now(),
+      };
+
+      setSession(prev => ({
+        ...prev,
+        shortsScripts: [...prev.shortsScripts, newShorts],
+      }));
+
+      alert(`숏츠 대본 생성 완료! (${shortsData.duration}초)`);
+    } catch (e) {
+      setErrorMsg("숏츠 생성 실패: 잠시 후 다시 시도해주세요.");
+    } finally {
+      setLoading('IDLE');
+    }
+  };
+
+  // 이미지 프롬프트 생성
+  const handleGenerateImagePrompts = async () => {
+    if (!session.generatedNewScript) {
+      setErrorMsg("먼저 대본을 생성해주세요.");
+      return;
+    }
+
+    setLoading('IMAGE_PROMPTS');
+    setErrorMsg(null);
+
+    try {
+      const prompts = await generateImagePrompts(session.generatedNewScript);
+      setSession(prev => ({
+        ...prev,
+        imagePrompts: prompts,
+      }));
+      alert(`${prompts.length}개의 이미지 프롬프트가 생성되었습니다!`);
+    } catch (e) {
+      setErrorMsg("이미지 프롬프트 생성 실패: 잠시 후 다시 시도해주세요.");
     } finally {
       setLoading('IDLE');
     }
@@ -223,6 +318,40 @@ const App: React.FC = () => {
 
         <main className="p-6 space-y-8">
           
+          {/* STEP 0: 대본 스타일 선택 */}
+          <section className="bg-blue-50 p-4 rounded-lg border-2 border-blue-200">
+            <label className="block text-sm font-bold text-gray-700 mb-2">
+              🎭 대본 스타일 선택
+            </label>
+            <div className="flex gap-4">
+              <button
+                onClick={() => setScriptType('YADAM')}
+                className={`px-4 py-2 rounded-lg font-bold transition-all ${
+                  scriptType === 'YADAM' 
+                    ? 'bg-blue-600 text-white ring-2 ring-blue-800' 
+                    : 'bg-white text-gray-700 border border-gray-300 hover:border-blue-400'
+                }`}
+              >
+                📜 조선 야담 스타일
+              </button>
+              <button
+                onClick={() => setScriptType('NORMAL')}
+                className={`px-4 py-2 rounded-lg font-bold transition-all ${
+                  scriptType === 'NORMAL' 
+                    ? 'bg-blue-600 text-white ring-2 ring-blue-800' 
+                    : 'bg-white text-gray-700 border border-gray-300 hover:border-blue-400'
+                }`}
+              >
+                💼 일반 유튜브 스타일
+              </button>
+            </div>
+            <p className="text-xs text-gray-600 mt-2">
+              {scriptType === 'YADAM' 
+                ? '✅ 조선시대 분위기, 반전 있는 일화, 교훈적 내용으로 생성됩니다.' 
+                : '✅ 일반적인 유튜브 대본 형식으로 생성됩니다.'}
+            </p>
+          </section>
+          
           {/* STEP 1: Input */}
           <section>
             <label className="block text-sm font-bold text-gray-700 mb-2">
@@ -312,6 +441,13 @@ const App: React.FC = () => {
                   >
                     💾 다운로드
                   </button>
+                  <button
+                    onClick={handleGenerateImagePrompts}
+                    disabled={loading === 'IMAGE_PROMPTS'}
+                    className="text-xs bg-pink-600 hover:bg-pink-700 text-white px-3 py-1 rounded transition-colors disabled:bg-gray-400"
+                  >
+                    {loading === 'IMAGE_PROMPTS' ? '생성 중...' : '🎨 이미지 프롬프트'}
+                  </button>
                   {session.isEditMode && (
                     <button
                       onClick={saveEditedScript}
@@ -320,6 +456,20 @@ const App: React.FC = () => {
                       ✅ 저장
                     </button>
                   )}
+                  <button
+                    onClick={handleAnalyze}
+                    disabled={loading === 'ANALYZING'}
+                    className="text-xs bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded transition-colors disabled:bg-gray-400"
+                  >
+                    {loading === 'ANALYZING' ? '🔍 분석 중...' : '🎬 PD 분석'}
+                  </button>
+                  <button
+                    onClick={handleGenerateShorts}
+                    disabled={loading === 'SHORTS'}
+                    className="text-xs bg-pink-600 hover:bg-pink-700 text-white px-3 py-1 rounded transition-colors disabled:bg-gray-400"
+                  >
+                    {loading === 'SHORTS' ? '⏱️ 생성 중...' : '📱 숏츠 만들기'}
+                  </button>
                 </div>
               </div>
               {session.isEditMode ? (
@@ -335,6 +485,112 @@ const App: React.FC = () => {
                   </pre>
                 </div>
               )}
+            </section>
+          )}
+
+          {/* PD 분석 결과 */}
+          {session.analysis && (
+            <section className="border-t border-gray-100 pt-6 animate-fade-in bg-red-50 p-6 rounded-lg border-2 border-red-200">
+              <h2 className="text-lg font-bold text-red-800 mb-4">🎬 메인 PD 분석 결과</h2>
+              
+              {/* 총평 */}
+              <div className="bg-white p-4 rounded-lg mb-4 border-l-4 border-red-600">
+                <h3 className="font-bold text-sm text-gray-700 mb-2">💬 총평 (직설적)</h3>
+                <p className="text-gray-800 font-medium">{session.analysis.overallComment}</p>
+              </div>
+
+              {/* 후킹 점수 */}
+              <div className="bg-white p-4 rounded-lg mb-4">
+                <h3 className="font-bold text-sm text-gray-700 mb-2">🎣 후킹 점수</h3>
+                <div className="flex items-center gap-3">
+                  <div className="text-3xl font-bold text-blue-600">{session.analysis.hookingScore}/10</div>
+                  <p className="text-gray-700">{session.analysis.hookingComment}</p>
+                </div>
+              </div>
+
+              {/* 논리적 허점 */}
+              {session.analysis.logicalFlaws.length > 0 && (
+                <div className="bg-white p-4 rounded-lg mb-4">
+                  <h3 className="font-bold text-sm text-gray-700 mb-3">⚠️ 논리적 허점 ({session.analysis.logicalFlaws.length}개)</h3>
+                  <div className="space-y-3">
+                    {session.analysis.logicalFlaws.map((flaw, idx) => (
+                      <div key={idx} className="border-l-4 border-yellow-500 pl-3">
+                        <p className="text-xs text-gray-500 mb-1">원문:</p>
+                        <p className="text-sm text-gray-700 mb-2 italic">"{flaw.original}"</p>
+                        <p className="text-xs text-red-600 font-bold mb-1">문제점: {flaw.issue}</p>
+                        <p className="text-xs text-green-700">✅ 수정안:</p>
+                        <p className="text-sm text-green-800 font-medium">"{flaw.suggestion}"</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 지루함 경보 */}
+              {session.analysis.boringParts.length > 0 && (
+                <div className="bg-white p-4 rounded-lg mb-4">
+                  <h3 className="font-bold text-sm text-gray-700 mb-3">😴 지루함 경보 ({session.analysis.boringParts.length}개)</h3>
+                  <div className="space-y-2">
+                    {session.analysis.boringParts.map((part, idx) => (
+                      <div key={idx} className="border-l-4 border-orange-400 pl-3 bg-orange-50 p-2 rounded">
+                        <p className="text-sm text-gray-700 italic mb-1">"{part.original}"</p>
+                        <p className="text-xs text-orange-700 font-bold">⚡ 이유: {part.reason}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 액션 플랜 */}
+              <div className="bg-red-600 text-white p-4 rounded-lg">
+                <h3 className="font-bold text-sm mb-2">🚨 당장 고쳐야 할 1가지</h3>
+                <p className="font-medium text-lg">{session.analysis.actionPlan}</p>
+              </div>
+            </section>
+          )}
+
+          {/* 숏츠 대본 목록 */}
+          {session.shortsScripts.length > 0 && (
+            <section className="border-t border-gray-100 pt-6 animate-fade-in">
+              <h2 className="text-lg font-bold text-gray-800 mb-4">📱 생성된 숏츠 대본 ({session.shortsScripts.length}개)</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {[...session.shortsScripts].reverse().map((shorts) => (
+                  <div key={shorts.id} className="bg-pink-50 p-4 rounded-lg border-2 border-pink-200">
+                    <div className="flex justify-between items-start mb-2">
+                      <h3 className="font-bold text-gray-800">{shorts.title}</h3>
+                      <span className="text-xs bg-pink-600 text-white px-2 py-1 rounded">{shorts.duration}초</span>
+                    </div>
+                    <pre className="whitespace-pre-wrap font-sans text-sm text-gray-700 leading-relaxed bg-white p-3 rounded border border-pink-200">
+                      {shorts.script}
+                    </pre>
+                    <div className="flex gap-2 mt-3">
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(shorts.script);
+                          alert('숏츠 대본이 복사되었습니다!');
+                        }}
+                        className="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded"
+                      >
+                        📋 복사
+                      </button>
+                      <button
+                        onClick={() => {
+                          const blob = new Blob([shorts.script], { type: 'text/plain' });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = `${shorts.title.replace(/[^a-zA-Z0-9가-힣]/g, '_')}_shorts.txt`;
+                          a.click();
+                          URL.revokeObjectURL(url);
+                        }}
+                        className="text-xs bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded"
+                      >
+                        💾 다운로드
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </section>
           )}
 
@@ -427,6 +683,64 @@ const App: React.FC = () => {
                   ))}
                 </div>
               )}
+            </section>
+          )}
+
+          {/* 이미지 프롬프트 섹션 */}
+          {session.imagePrompts.length > 0 && (
+            <section className="border-t border-gray-100 pt-6 animate-fade-in">
+              <div className="flex justify-between items-center mb-4">
+                <label className="block text-sm font-bold text-gray-700">
+                  🎨 문장별 이미지 프롬프트 ({session.imagePrompts.length}개)
+                </label>
+                <button
+                  onClick={() => setSession(prev => ({ ...prev, imagePrompts: [] }))}
+                  className="text-xs bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded"
+                >
+                  닫기
+                </button>
+              </div>
+              <div className="space-y-4">
+                {session.imagePrompts.map((prompt, idx) => (
+                  <div key={idx} className="bg-gradient-to-r from-pink-50 to-purple-50 p-4 rounded-lg border border-pink-200">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-8 h-8 bg-pink-600 text-white rounded-full flex items-center justify-center font-bold text-sm">
+                        {prompt.sceneNumber}
+                      </div>
+                      <div className="flex-1">
+                        <div className="mb-2">
+                          <span className="text-xs font-bold text-gray-500">원문:</span>
+                          <p className="text-sm text-gray-800 mt-1">{prompt.sentence}</p>
+                        </div>
+                        <div className="mb-2">
+                          <span className="text-xs font-bold text-gray-500">한글 설명:</span>
+                          <p className="text-sm text-blue-700 mt-1">{prompt.koreanDescription}</p>
+                        </div>
+                        <div className="bg-black text-green-400 p-3 rounded font-mono text-xs overflow-x-auto">
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="text-gray-400">Prompt:</span>
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(prompt.imagePrompt);
+                                alert('프롬프트가 복사되었습니다!');
+                              }}
+                              className="text-xs bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded"
+                            >
+                              📋 복사
+                            </button>
+                          </div>
+                          {prompt.imagePrompt}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-xs text-blue-800">
+                  💡 <strong>사용 방법:</strong> 각 프롬프트를 Midjourney, DALL-E, Stable Diffusion 등의 AI 이미지 생성 툴에 복사하여 사용하세요.
+                </p>
+              </div>
             </section>
           )}
         </main>
