@@ -74,8 +74,6 @@ export const INITIAL_SESSION: ScriptSession = {
   shortsScripts: [],
   imagePrompts: [],
 };
-  shortsScripts: [],
-};
 
 export interface TodoItem {
   id: string;
