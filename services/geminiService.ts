@@ -86,6 +86,21 @@ export const generateYadamScript = async (
   historyContext?: string
 ): Promise<string> => {
   try {
+    // 입력 대본 길이 분석
+    const inputLength = originalContext.length;
+    let targetLength: string;
+    
+    if (inputLength < 1000) {
+      // 입력이 짧으면 10,000자 내외로 확장
+      targetLength = "약 10,000자 내외 (충분히 상세하고 풍성하게)";
+    } else if (inputLength < 5000) {
+      // 중간 길이면 비슷하게 유지
+      targetLength = `약 ${inputLength}~${inputLength + 2000}자 내외`;
+    } else {
+      // 긴 대본이면 비슷하게 유지
+      targetLength = `약 ${inputLength}자 정도 (입력 대본과 비슷한 길이)`;
+    }
+
     const historyPrompt = historyContext 
       ? `\n\n[참고용 과거 야담 대본]\n${historyContext}`
       : '';
@@ -95,8 +110,17 @@ export const generateYadamScript = async (
       contents: `너는 조선시대 야담 전문 스토리텔러야. 
       
       주제: "${topic}"
-      현대 대본 참고: "${originalContext.substring(0, 500)}..."
+      사용자가 입력한 대본 (${inputLength}자):
+      """
+      ${originalContext}
+      """
       ${historyPrompt}
+      
+      ## 중요 지침:
+      **입력 대본을 분석하고, 그 스타일과 내용을 참고하여 조선시대 야담으로 재창작해줘.**
+      - 입력 대본의 핵심 메시지와 구조를 유지
+      - 하지만 조선시대 배경과 등장인물로 변경
+      - 길이: ${targetLength}
       
       ## 야담 스타일 특징:
       - 조선시대 역사적 인물이나 사건을 다룸
@@ -116,8 +140,6 @@ export const generateYadamScript = async (
       [전개] - 사건 전개 (반전 준비)
       [절정] - 통쾌한 반전 또는 교훈
       [마무리] - 여운 남기기
-      
-      **중요**: 대본 길이는 5분 내외 (약 750-900자)로 작성해줘.
       
       조선시대 분위기를 살려 한글로 작성해줘.`,
       config: {}
