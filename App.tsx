@@ -538,7 +538,7 @@ const App: React.FC = () => {
                     onClick={toggleEditMode}
                     className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-colors shadow-sm"
                   >
-                    {session.isEditMode ? '📝 편집 중' : '✏️ 편집'}
+                    {session.isEditMode ? '📝 수정 중' : '✏️ 편집'}
                   </button>
                   <button
                     onClick={handleCopy}
