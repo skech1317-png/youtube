@@ -337,39 +337,66 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col items-center py-8 px-4 font-sans">
-      <div className="w-full max-w-3xl bg-white rounded-xl shadow-xl overflow-hidden border border-gray-200">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex flex-col items-center py-8 px-4 font-sans">
+      <div className="w-full max-w-5xl">
         
         {/* Header */}
-        <header className="bg-black text-white p-6 flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold">AI YouTube Script Maker</h1>
-            <p className="text-gray-400 text-sm mt-1">대본 입력 → 주제 추천 → 새 대본 생성</p>
+        <header className="bg-gradient-to-r from-black to-gray-900 text-white p-8 rounded-2xl shadow-2xl mb-8">
+          <div className="text-center mb-6">
+            <h1 className="text-4xl font-bold mb-3">🎭 야담방 : AI 조선시대 대본 생성기</h1>
+            <p className="text-xl text-gray-300 mb-2">성공한 대본의 DNA를 조선시대 야담으로 복제하세요</p>
+            <p className="text-sm text-gray-400">AI가 작가의 문체, 심리적 트릭, 후킹 요소를 완벽하게 분석하여 내 것으로 만들어줍니다</p>
           </div>
-          <div className="flex gap-2">
+          
+          {/* 단계 표시 */}
+          <div className="flex justify-center gap-4 mb-6">
+            <div className="flex items-center gap-2 px-4 py-2 bg-white/10 rounded-lg">
+              <span className="w-8 h-8 bg-white text-black rounded-full flex items-center justify-center font-bold">1</span>
+              <span className="text-sm">대본 입력</span>
+            </div>
+            <div className="text-gray-400">→</div>
+            <div className="flex items-center gap-2 px-4 py-2 bg-white/10 rounded-lg">
+              <span className="w-8 h-8 bg-white text-black rounded-full flex items-center justify-center font-bold">2</span>
+              <span className="text-sm">주제 선택</span>
+            </div>
+            <div className="text-gray-400">→</div>
+            <div className="flex items-center gap-2 px-4 py-2 bg-white/10 rounded-lg">
+              <span className="w-8 h-8 bg-white text-black rounded-full flex items-center justify-center font-bold">3</span>
+              <span className="text-sm">야담 생성</span>
+            </div>
+            <div className="text-gray-400">→</div>
+            <div className="flex items-center gap-2 px-4 py-2 bg-white/10 rounded-lg">
+              <span className="w-8 h-8 bg-white text-black rounded-full flex items-center justify-center font-bold">4</span>
+              <span className="text-sm">완성</span>
+            </div>
+          </div>
+
+          <div className="flex gap-3 justify-center">
             <button 
               onClick={() => setShowHistory(!showHistory)}
-              className="text-xs bg-gray-800 hover:bg-gray-700 px-3 py-2 rounded text-gray-300 transition-colors"
+              className="text-sm bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg transition-colors backdrop-blur-sm"
             >
               📚 히스토리 ({session.history.length})
             </button>
             <button 
               onClick={() => setCompareMode(!compareMode)}
-              className="text-xs bg-gray-800 hover:bg-gray-700 px-3 py-2 rounded text-gray-300 transition-colors"
+              className="text-sm bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg transition-colors backdrop-blur-sm"
               disabled={session.generatedScripts.length === 0}
             >
               🔀 비교 ({session.generatedScripts.length})
             </button>
             <button 
               onClick={handleClear}
-              className="text-xs bg-gray-800 hover:bg-gray-700 px-3 py-2 rounded text-gray-300 transition-colors"
+              className="text-sm bg-red-500/80 hover:bg-red-600 px-4 py-2 rounded-lg transition-colors backdrop-blur-sm"
             >
-              초기화
+              🗑️ 초기화
             </button>
           </div>
         </header>
 
-        <main className="p-6 space-y-8">
+        <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-200">
+        
+        <main className="p-8 space-y-8">
           
           {/* STEP 0: 대본 스타일 선택 */}
           <section className="bg-blue-50 p-4 rounded-lg border-2 border-blue-200">
@@ -406,57 +433,84 @@ const App: React.FC = () => {
           </section>
           
           {/* STEP 1: Input */}
-          <section>
-            <label className="block text-sm font-bold text-gray-700 mb-2">
-              1. 기존 대본 또는 아이디어 입력
-            </label>
+          <section className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-xl border-2 border-blue-200">
+            <div className="flex items-center gap-3 mb-4">
+              <span className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-lg">1</span>
+              <div>
+                <label className="block text-lg font-bold text-gray-800">
+                  성공한 유튜브 대본을 붙여넣으세요
+                </label>
+                <p className="text-sm text-gray-600">AI가 문체, 후킹 요소, 심리 트릭을 분석합니다</p>
+              </div>
+            </div>
             <textarea
-              className="w-full h-40 p-4 border-2 border-gray-200 rounded-lg focus:border-black focus:ring-0 transition-colors resize-none text-base"
-              placeholder="여기에 대본 초안이나 아이디어를 자유롭게 적어주세요..."
+              className="w-full h-48 p-4 border-2 border-blue-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all resize-none text-base bg-white shadow-inner"
+              placeholder="예시: 여러분, 오늘은 놀라운 이야기를 가져왔습니다...&#10;&#10;💡 팁: 조회수 높은 영상의 대본을 입력하면 더 좋은 결과를 얻을 수 있습니다!"
               value={session.originalScript}
               onChange={handleInputChange}
             />
-            <div className="mt-3 flex justify-end">
+            <div className="mt-4 flex justify-between items-center">
+              <div className="text-sm text-gray-600">
+                {session.originalScript.length > 0 && (
+                  <span className="bg-blue-100 px-3 py-1 rounded-full">
+                    📝 {session.originalScript.length}자 입력됨
+                  </span>
+                )}
+              </div>
               <button
                 onClick={handleSuggest}
                 disabled={loading !== 'IDLE' || !session.originalScript.trim()}
-                className="bg-black text-white px-6 py-3 rounded-lg font-bold hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+                className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-4 rounded-xl font-bold text-lg hover:from-blue-700 hover:to-indigo-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center gap-3"
               >
                 {loading === 'SUGGESTING' ? (
-                  <span className="animate-pulse">분석 중...</span>
+                  <>
+                    <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
+                    <span>AI 분석 중...</span>
+                  </>
                 ) : (
                   <>
-                    <span>새로운 주제 추천받기</span>
-                    <span>↓</span>
+                    <span>🚀 DNA 분석 시작</span>
+                    <span className="text-2xl">→</span>
                   </>
                 )}
               </button>
             </div>
-            {errorMsg && <p className="text-red-500 text-sm mt-2 text-right">{errorMsg}</p>}
+            {errorMsg && <p className="text-red-600 text-sm mt-3 bg-red-50 p-3 rounded-lg border border-red-200">{errorMsg}</p>}
           </section>
 
           {/* STEP 2: Suggestions */}
           {session.suggestedTopics.length > 0 && (
-            <section className="border-t border-gray-100 pt-6 animate-fade-in">
-              <label className="block text-sm font-bold text-gray-700 mb-3">
-                2. 추천 주제 선택 (클릭하여 대본 생성)
-              </label>
-              <div className="grid gap-3 sm:grid-cols-1">
+            <section className="bg-gradient-to-br from-green-50 to-emerald-50 p-6 rounded-xl border-2 border-green-200 animate-fade-in">
+              <div className="flex items-center gap-3 mb-4">
+                <span className="w-10 h-10 bg-green-600 text-white rounded-full flex items-center justify-center font-bold text-lg">2</span>
+                <div>
+                  <label className="block text-lg font-bold text-gray-800">
+                    AI가 추천한 조선시대 야담 주제
+                  </label>
+                  <p className="text-sm text-gray-600">클릭하면 즉시 대본이 생성됩니다</p>
+                </div>
+              </div>
+              <div className="grid gap-4">
                 {session.suggestedTopics.map((topic, idx) => (
                   <button
                     key={idx}
                     onClick={() => handleGenerateScript(topic)}
                     disabled={loading !== 'IDLE'}
-                    className={`text-left p-4 rounded-lg border-2 transition-all hover:scale-[1.01] ${
+                    className={`text-left p-5 rounded-xl border-2 transition-all hover:scale-[1.02] shadow-md hover:shadow-lg ${
                       session.selectedTopic === topic
-                        ? 'border-black bg-gray-50 ring-1 ring-black'
-                        : 'border-gray-200 hover:border-gray-400 bg-white'
+                        ? 'border-green-500 bg-white ring-2 ring-green-300'
+                        : 'border-green-200 hover:border-green-400 bg-white'
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="font-medium text-lg text-gray-800">{topic}</span>
-                      {loading === 'GENERATING' && session.selectedTopic === topic && (
-                        <div className="h-5 w-5 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">📜</span>
+                        <span className="font-bold text-xl text-gray-800">{topic}</span>
+                      </div>
+                      {loading === 'GENERATING' && session.selectedTopic === topic ? (
+                        <div className="h-6 w-6 border-3 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+                      ) : (
+                        <span className="text-green-600 text-xl">→</span>
                       )}
                     </div>
                   </button>
@@ -467,58 +521,59 @@ const App: React.FC = () => {
 
           {/* STEP 3: Result */}
           {session.generatedNewScript && !compareMode && (
-            <section className="border-t border-gray-100 pt-6 animate-fade-in">
-              <div className="flex justify-between items-center mb-3">
-                <label className="block text-sm font-bold text-gray-700">
-                  3. 생성된 새 대본
-                </label>
-                <div className="flex gap-2 items-center">
-                  <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                    주제: {session.selectedTopic}
-                  </span>
+            <section className="bg-gradient-to-br from-purple-50 to-pink-50 p-6 rounded-xl border-2 border-purple-200 animate-fade-in">
+              <div className="flex items-center gap-3 mb-4">
+                <span className="w-10 h-10 bg-purple-600 text-white rounded-full flex items-center justify-center font-bold text-lg">3</span>
+                <div className="flex-1">
+                  <label className="block text-lg font-bold text-gray-800">
+                    ✨ 조선시대 야담 대본 완성!
+                  </label>
+                  <p className="text-sm text-gray-600">주제: {session.selectedTopic}</p>
+                </div>
+                <div className="flex flex-wrap gap-2 items-center">
                   <button
                     onClick={toggleEditMode}
-                    className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded transition-colors"
+                    className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-colors shadow-sm"
                   >
                     {session.isEditMode ? '📝 편집 중' : '✏️ 편집'}
                   </button>
                   <button
                     onClick={handleCopy}
-                    className="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded transition-colors"
+                    className="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg transition-colors shadow-sm"
                   >
                     📋 복사
                   </button>
                   <button
                     onClick={handleDownload}
-                    className="text-xs bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded transition-colors"
+                    className="text-xs bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-lg transition-colors shadow-sm"
                   >
                     💾 다운로드
                   </button>
                   <button
-                    onClick={handleGenerateImagePrompts}
-                    disabled={loading === 'IMAGE_PROMPTS'}
-                    className="text-xs bg-pink-600 hover:bg-pink-700 text-white px-3 py-1 rounded transition-colors disabled:bg-gray-400"
-                  >
-                    {loading === 'IMAGE_PROMPTS' ? '생성 중...' : '🎨 이미지 프롬프트'}
-                  </button>
-                  <button
                     onClick={handleGenerateTitle}
                     disabled={loading === 'TITLE'}
-                    className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded transition-colors disabled:bg-gray-400"
+                    className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-lg transition-colors disabled:bg-gray-400 shadow-sm"
                   >
-                    {loading === 'TITLE' ? '생성 중...' : '📝 제목 생성'}
+                    {loading === 'TITLE' ? '⏳' : '📝 제목'}
                   </button>
                   <button
                     onClick={handleGenerateThumbnails}
                     disabled={loading === 'THUMBNAILS'}
-                    className="text-xs bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1 rounded transition-colors disabled:bg-gray-400"
+                    className="text-xs bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-2 rounded-lg transition-colors disabled:bg-gray-400 shadow-sm"
                   >
-                    {loading === 'THUMBNAILS' ? '생성 중...' : '🖼️ 썸네일 3개'}
+                    {loading === 'THUMBNAILS' ? '⏳' : '🖼️ 썸네일'}
+                  </button>
+                  <button
+                    onClick={handleGenerateImagePrompts}
+                    disabled={loading === 'IMAGE_PROMPTS'}
+                    className="text-xs bg-pink-600 hover:bg-pink-700 text-white px-3 py-2 rounded-lg transition-colors disabled:bg-gray-400 shadow-sm"
+                  >
+                    {loading === 'IMAGE_PROMPTS' ? '⏳' : '🎨 이미지'}
                   </button>
                   {session.isEditMode && (
                     <button
                       onClick={saveEditedScript}
-                      className="text-xs bg-orange-600 hover:bg-orange-700 text-white px-3 py-1 rounded transition-colors"
+                      className="text-xs bg-orange-600 hover:bg-orange-700 text-white px-3 py-2 rounded-lg transition-colors shadow-sm"
                     >
                       ✅ 저장
                     </button>
@@ -526,32 +581,43 @@ const App: React.FC = () => {
                   <button
                     onClick={handleAnalyze}
                     disabled={loading === 'ANALYZING'}
-                    className="text-xs bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded transition-colors disabled:bg-gray-400"
+                    className="text-xs bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg transition-colors disabled:bg-gray-400 shadow-sm"
                   >
-                    {loading === 'ANALYZING' ? '🔍 분석 중...' : '🎬 PD 분석'}
+                    {loading === 'ANALYZING' ? '🔍' : '🎬 PD분석'}
                   </button>
                   <button
                     onClick={handleGenerateShorts}
                     disabled={loading === 'SHORTS'}
-                    className="text-xs bg-pink-600 hover:bg-pink-700 text-white px-3 py-1 rounded transition-colors disabled:bg-gray-400"
+                    className="text-xs bg-pink-600 hover:bg-pink-700 text-white px-3 py-2 rounded-lg transition-colors disabled:bg-gray-400 shadow-sm"
                   >
-                    {loading === 'SHORTS' ? '⏱️ 생성 중...' : '📱 숏츠 만들기'}
+                    {loading === 'SHORTS' ? '⏳' : '📱 숏츠'}
                   </button>
                 </div>
               </div>
               {session.isEditMode ? (
                 <textarea
-                  className="w-full h-96 p-6 border-2 border-blue-300 rounded-lg focus:border-blue-500 focus:ring-0 transition-colors resize-none text-base font-sans"
+                  className="w-full h-96 p-6 border-2 border-purple-300 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all resize-none text-base font-sans bg-white shadow-inner"
                   value={session.generatedNewScript}
                   onChange={(e) => handleEditScript(e.target.value)}
                 />
               ) : (
-                <div className="bg-gray-50 p-6 rounded-lg border border-gray-200 shadow-inner">
+                <div className="bg-white p-6 rounded-xl border-2 border-purple-200 shadow-inner">
                   <pre className="whitespace-pre-wrap font-sans text-gray-800 leading-relaxed text-base">
                     {session.generatedNewScript}
                   </pre>
                 </div>
               )}
+              
+              {/* 완성 단계 표시 */}
+              <div className="mt-6 bg-gradient-to-r from-purple-100 to-pink-100 p-4 rounded-xl border border-purple-300">
+                <div className="flex items-center gap-3">
+                  <span className="w-10 h-10 bg-purple-600 text-white rounded-full flex items-center justify-center font-bold text-lg">4</span>
+                  <div>
+                    <p className="font-bold text-gray-800">🎉 완성!</p>
+                    <p className="text-sm text-gray-600">위 버튼들로 제목, 썸네일, 이미지 프롬프트, 숏츠를 생성하세요</p>
+                  </div>
+                </div>
+              </div>
             </section>
           )}
 
@@ -893,9 +959,11 @@ const App: React.FC = () => {
           )}
         </main>
 
-        <footer className="bg-gray-50 p-4 text-center text-xs text-gray-400 border-t border-gray-100">
-          모든 데이터는 브라우저(LocalStorage)에 자동 저장됩니다.
+        <footer className="bg-gradient-to-r from-gray-50 to-gray-100 p-6 text-center border-t border-gray-200">
+          <p className="text-sm text-gray-600 mb-2">🔒 모든 데이터는 브라우저(LocalStorage)에 자동 저장됩니다</p>
+          <p className="text-xs text-gray-500">AI 야담방 © 2025 - 성공한 대본의 DNA를 복제하세요</p>
         </footer>
+      </div>
       </div>
     </div>
   );
