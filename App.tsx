@@ -533,29 +533,33 @@ const App: React.FC = () => {
                   </label>
                   <p className="text-sm text-gray-600">주제: {session.selectedTopic}</p>
                 </div>
-                <div className="flex flex-wrap gap-2 items-center">
+              </div>
+              
+              {/* 고정 버튼 영역 */}
+              <div className="bg-white p-4 rounded-xl border-2 border-purple-300 mb-4 shadow-sm">
+                <div className="flex flex-wrap gap-2 justify-center">
                   <button
                     onClick={handleCopy}
-                    className="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg transition-colors shadow-sm"
+                    className="text-xs bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm font-medium"
                   >
                     📋 복사
                   </button>
                   <button
                     onClick={handleDownload}
-                    className="text-xs bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-lg transition-colors shadow-sm"
+                    className="text-xs bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm font-medium"
                   >
                     💾 다운로드
                   </button>
                   <button
                     onClick={toggleEditMode}
-                    className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-colors shadow-sm"
+                    className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm font-medium"
                   >
                     {session.isEditMode ? '📝 수정 중' : '✏️ 편집'}
                   </button>
                   {session.isEditMode && (
                     <button
                       onClick={saveEditedScript}
-                      className="text-xs bg-orange-600 hover:bg-orange-700 text-white px-3 py-2 rounded-lg transition-colors shadow-sm"
+                      className="text-xs bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm font-medium"
                     >
                       ✅ 저장
                     </button>
@@ -563,40 +567,41 @@ const App: React.FC = () => {
                   <button
                     onClick={handleGenerateImagePrompts}
                     disabled={loading === 'IMAGE_PROMPTS'}
-                    className="text-xs bg-pink-600 hover:bg-pink-700 text-white px-3 py-2 rounded-lg transition-colors disabled:bg-gray-400 shadow-sm"
+                    className="text-xs bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-lg transition-colors disabled:bg-gray-400 shadow-sm font-medium"
                   >
                     {loading === 'IMAGE_PROMPTS' ? '⏳ 분석중' : '👥 등장인물'}
                   </button>
                   <button
                     onClick={handleGenerateTitle}
                     disabled={loading === 'TITLE'}
-                    className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-lg transition-colors disabled:bg-gray-400 shadow-sm"
+                    className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors disabled:bg-gray-400 shadow-sm font-medium"
                   >
                     {loading === 'TITLE' ? '⏳ 생성중' : '📝 제목'}
                   </button>
                   <button
                     onClick={handleGenerateThumbnails}
                     disabled={loading === 'THUMBNAILS'}
-                    className="text-xs bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-2 rounded-lg transition-colors disabled:bg-gray-400 shadow-sm"
+                    className="text-xs bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg transition-colors disabled:bg-gray-400 shadow-sm font-medium"
                   >
                     {loading === 'THUMBNAILS' ? '⏳ 생성중' : '🖼️ 썸네일'}
                   </button>
                   <button
                     onClick={handleAnalyze}
                     disabled={loading === 'ANALYZING'}
-                    className="text-xs bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg transition-colors disabled:bg-gray-400 shadow-sm"
+                    className="text-xs bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors disabled:bg-gray-400 shadow-sm font-medium"
                   >
                     {loading === 'ANALYZING' ? '🔍 분석중' : '🎬 PD분석'}
                   </button>
                   <button
                     onClick={handleGenerateShorts}
                     disabled={loading === 'SHORTS'}
-                    className="text-xs bg-pink-600 hover:bg-pink-700 text-white px-3 py-2 rounded-lg transition-colors disabled:bg-gray-400 shadow-sm"
+                    className="text-xs bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-lg transition-colors disabled:bg-gray-400 shadow-sm font-medium"
                   >
                     {loading === 'SHORTS' ? '⏳ 작성중' : '📱 숏츠'}
                   </button>
                 </div>
               </div>
+              
               {session.isEditMode ? (
                 <textarea
                   className="w-full h-96 p-6 border-2 border-purple-300 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all resize-none text-base font-sans bg-white shadow-inner"
