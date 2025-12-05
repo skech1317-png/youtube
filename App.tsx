@@ -568,7 +568,7 @@ const App: React.FC = () => {
                     disabled={loading === 'IMAGE_PROMPTS'}
                     className="text-xs bg-pink-600 hover:bg-pink-700 text-white px-3 py-2 rounded-lg transition-colors disabled:bg-gray-400 shadow-sm"
                   >
-                    {loading === 'IMAGE_PROMPTS' ? '⏳' : '🎨 이미지'}
+                    {loading === 'IMAGE_PROMPTS' ? '⏳' : '👥 등장인물'}
                   </button>
                   {session.isEditMode && (
                     <button
@@ -614,7 +614,7 @@ const App: React.FC = () => {
                   <span className="w-10 h-10 bg-purple-600 text-white rounded-full flex items-center justify-center font-bold text-lg">4</span>
                   <div>
                     <p className="font-bold text-gray-800">🎉 완성!</p>
-                    <p className="text-sm text-gray-600">위 버튼들로 제목, 썸네일, 이미지 프롬프트, 숏츠를 생성하세요</p>
+                    <p className="text-sm text-gray-600">위 버튼들로 제목, 썸네일, 등장인물 프롬프트, 숏츠를 생성하세요</p>
                   </div>
                 </div>
               </div>
@@ -900,12 +900,12 @@ const App: React.FC = () => {
             </section>
           )}
 
-          {/* 이미지 프롬프트 섹션 */}
+          {/* 등장인물 이미지 프롬프트 섹션 */}
           {session.imagePrompts.length > 0 && (
             <section className="border-t border-gray-100 pt-6 animate-fade-in">
               <div className="flex justify-between items-center mb-4">
                 <label className="block text-sm font-bold text-gray-700">
-                  🎨 문장별 이미지 프롬프트 ({session.imagePrompts.length}개)
+                  👥 등장인물 이미지 프롬프트 ({session.imagePrompts.length}명)
                 </label>
                 <button
                   onClick={() => setSession(prev => ({ ...prev, imagePrompts: [] }))}
@@ -914,45 +914,49 @@ const App: React.FC = () => {
                   닫기
                 </button>
               </div>
-              <div className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
                 {session.imagePrompts.map((prompt, idx) => (
-                  <div key={idx} className="bg-gradient-to-r from-pink-50 to-purple-50 p-4 rounded-lg border border-pink-200">
-                    <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0 w-8 h-8 bg-pink-600 text-white rounded-full flex items-center justify-center font-bold text-sm">
+                  <div key={idx} className="bg-white p-5 rounded-xl border-2 border-pink-200 shadow-sm hover:shadow-md transition-shadow">
+                    <div className="flex items-start gap-3 mb-3">
+                      <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-pink-500 to-rose-500 text-white rounded-full flex items-center justify-center font-bold text-lg shadow-md">
                         {prompt.sceneNumber}
                       </div>
                       <div className="flex-1">
-                        <div className="mb-2">
-                          <span className="text-xs font-bold text-gray-500">원문:</span>
-                          <p className="text-sm text-gray-800 mt-1">{prompt.sentence}</p>
+                        <h4 className="font-bold text-gray-800 text-base leading-tight">{prompt.sentence}</h4>
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="bg-gradient-to-r from-pink-50 to-rose-50 p-3 rounded-lg border border-pink-100">
+                        <p className="text-xs font-bold text-pink-600 mb-2 flex items-center gap-1">
+                          <span>🇰🇷</span> 한글 설명
+                        </p>
+                        <p className="text-sm text-gray-700 leading-relaxed">{prompt.koreanDescription}</p>
+                      </div>
+                      <div className="bg-gray-900 text-green-400 p-3 rounded-lg font-mono text-xs overflow-x-auto">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-gray-400 font-bold">🌍 영문 프롬프트:</span>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(prompt.imagePrompt);
+                              alert('영문 프롬프트가 복사되었습니다!');
+                            }}
+                            className="text-xs bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded transition-colors"
+                          >
+                            📋 복사
+                          </button>
                         </div>
-                        <div className="mb-2">
-                          <span className="text-xs font-bold text-gray-500">한글 설명:</span>
-                          <p className="text-sm text-blue-700 mt-1">{prompt.koreanDescription}</p>
-                        </div>
-                        <div className="bg-black text-green-400 p-3 rounded font-mono text-xs overflow-x-auto">
-                          <div className="flex justify-between items-center mb-1">
-                            <span className="text-gray-400">Prompt:</span>
-                            <button
-                              onClick={() => {
-                                navigator.clipboard.writeText(prompt.imagePrompt);
-                                alert('프롬프트가 복사되었습니다!');
-                              }}
-                              className="text-xs bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded"
-                            >
-                              📋 복사
-                            </button>
-                          </div>
-                          {prompt.imagePrompt}
-                        </div>
+                        <p className="leading-relaxed">{prompt.imagePrompt}</p>
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
-              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-xs text-blue-800">
-                  💡 <strong>사용 방법:</strong> 각 프롬프트를 Midjourney, DALL-E, Stable Diffusion 등의 AI 이미지 생성 툴에 복사하여 사용하세요.
+              <div className="mt-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl">
+                <p className="text-sm text-blue-800">
+                  💡 <strong>사용 방법:</strong> 각 등장인물의 영문 프롬프트를 Midjourney, DALL-E, Stable Diffusion 등에 복사하여 캐릭터 이미지를 생성하세요.
+                </p>
+                <p className="text-xs text-blue-600 mt-2">
+                  ✨ 팁: 여러 인물을 일관된 스타일로 생성하려면 같은 AI 툴과 설정을 사용하세요.
                 </p>
               </div>
             </section>

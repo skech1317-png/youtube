@@ -333,7 +333,7 @@ JSON으로 응답해줘:
   }
 };
 
-// 7. 문장별 이미지 프롬프트 생성
+// 7. 등장인물 이미지 프롬프트 생성
 export const generateImagePrompts = async (script: string): Promise<Array<{
   sentence: string;
   imagePrompt: string;
@@ -341,41 +341,48 @@ export const generateImagePrompts = async (script: string): Promise<Array<{
   sceneNumber: number;
 }>> => {
   try {
-    // 대본이 너무 길면 문장 단위로 분할 (최대 15개 핵심 문장만 추출)
-    const sentences = script
-      .split(/[.!?]\s+/)
-      .filter(s => s.trim().length > 10) // 너무 짧은 문장 제외
-      .slice(0, 10); // 최대 10개 문장만 처리 (비용 절감)
-    
-    const scriptSummary = sentences.join('. ') + '.';
+    // 대본이 너무 길면 앞부분만 분석 (등장인물 파악용)
+    const scriptForAnalysis = script.length > 3000 
+      ? script.substring(0, 3000) 
+      : script;
     
     const response = await ai.models.generateContent({
       model: MODEL_NAME,
-      contents: `너는 AI 이미지 생성 전문가야. 아래 조선시대 야담 대본의 핵심 문장들을 분석하여, Midjourney/DALL-E/Stable Diffusion에서 사용할 수 있는 영문 이미지 프롬프트를 생성해줘.
+      contents: `너는 AI 이미지 생성 전문가야. 아래 조선시대 야담 대본을 분석하여, 등장하는 주요 인물들의 캐릭터 이미지 프롬프트를 생성해줘.
 
-대본 (핵심 문장):
-"${scriptSummary}"
+대본:
+"""
+${scriptForAnalysis}
+"""
 
-조건:
-1. 각 문장마다 시각적으로 강렬한 장면을 이미지 프롬프트로 변환
-2. 프롬프트는 영문으로 작성 (조선시대 분위기 강조)
-3. 스타일 키워드 포함: "Joseon dynasty", "traditional Korean", "cinematic", "detailed", "4K"
-4. 한글 설명도 함께 제공
-5. 장면 번호 부여 (1부터 시작)
-6. 각 프롬프트는 구체적이고 시각적으로 명확하게
+## 작업 지침:
+1. 대본에 등장하는 주요 인물들을 파악 (최대 8명)
+2. 각 인물의 특징, 신분, 성격을 분석
+3. Midjourney/DALL-E/Stable Diffusion용 영문 프롬프트 작성
+4. 조선시대 복식, 헤어스타일, 분위기 구체적으로 묘사
 
-프롬프트 작성 팁:
-- 인물, 배경, 분위기, 스타일을 모두 명시
-- "A traditional Korean scholar in hanbok reading ancient scrolls in a candle-lit room, Joseon dynasty, dramatic lighting, cinematic composition, 4K, highly detailed"
-- 색감, 조명, 구도도 구체적으로 표현
+## 프롬프트 작성 가이드:
+- **신분 표현**: scholar(선비), nobleman(양반), commoner(평민), gisaeng(기생), official(관리), merchant(상인)
+- **복식**: white hanbok(흰 한복), colorful hanbok(색동 한복), official robe(관복), traditional Korean attire
+- **스타일**: Joseon dynasty, traditional Korean, historical portrait, detailed, 4K, cinematic lighting
+- **구도**: portrait shot, full body shot, character design, concept art
+- **분위기**: dignified(위엄), elegant(우아), cunning(교활), innocent(순진), wise(현명)
 
-예시:
+## 출력 예시:
 {
-  "sentence": "어느 날 선비가 책을 읽고 있었다.",
-  "imagePrompt": "A traditional Korean scholar in white hanbok reading ancient books in a dim room, Joseon dynasty, warm candle lighting, wooden interior, ink painting atmosphere, cinematic composition, 4K, highly detailed",
-  "koreanDescription": "조선시대 흰 한복 입은 선비가 촛불 아래서 고서를 읽는 모습, 목조 건물 내부, 수묵화 분위기",
+  "sentence": "주인공 이몽학 - 가난하지만 지혜로운 선비",
+  "imagePrompt": "A young Korean scholar in white hanbok, gentle face, intelligent eyes, holding ancient books, Joseon dynasty, traditional Korean portrait, soft lighting, detailed facial features, historical painting style, 4K, concept art",
+  "koreanDescription": "흰 한복을 입은 젊은 선비, 온화한 얼굴, 지적인 눈빛, 고서를 들고 있는 모습",
   "sceneNumber": 1
-}`,
+},
+{
+  "sentence": "탐관오리 김사또 - 욕심 많고 교활한 관리",
+  "imagePrompt": "A corrupt Korean official in dark official robe with gold embroidery, cunning expression, middle-aged, greedy eyes, Joseon dynasty, traditional Korean portrait, dramatic lighting, detailed, 4K, character design",
+  "koreanDescription": "금실로 수놓은 검은 관복을 입은 중년 관리, 교활한 표정, 탐욕스러운 눈빛",
+  "sceneNumber": 2
+}
+
+대본을 분석해서 등장하는 주요 인물들의 이미지 프롬프트를 JSON 배열로 생성해줘.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -402,8 +409,8 @@ export const generateImagePrompts = async (script: string): Promise<Array<{
     }
     return [];
   } catch (error) {
-    console.error("Gemini Image Prompt Error:", error);
-    throw new Error("이미지 프롬프트 생성 중 오류가 발생했습니다. 대본이 너무 길 수 있습니다.");
+    console.error("Gemini Character Image Prompt Error:", error);
+    throw new Error("등장인물 이미지 프롬프트 생성 중 오류가 발생했습니다.");
   }
 };
 
