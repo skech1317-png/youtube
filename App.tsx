@@ -535,12 +535,6 @@ const App: React.FC = () => {
                 </div>
                 <div className="flex flex-wrap gap-2 items-center">
                   <button
-                    onClick={toggleEditMode}
-                    className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-colors shadow-sm"
-                  >
-                    {session.isEditMode ? '📝 수정 중' : '✏️ 편집'}
-                  </button>
-                  <button
                     onClick={handleCopy}
                     className="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg transition-colors shadow-sm"
                   >
@@ -551,6 +545,27 @@ const App: React.FC = () => {
                     className="text-xs bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-lg transition-colors shadow-sm"
                   >
                     💾 다운로드
+                  </button>
+                  <button
+                    onClick={toggleEditMode}
+                    className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-colors shadow-sm"
+                  >
+                    {session.isEditMode ? '📝 수정 중' : '✏️ 편집'}
+                  </button>
+                  {session.isEditMode && (
+                    <button
+                      onClick={saveEditedScript}
+                      className="text-xs bg-orange-600 hover:bg-orange-700 text-white px-3 py-2 rounded-lg transition-colors shadow-sm"
+                    >
+                      ✅ 저장
+                    </button>
+                  )}
+                  <button
+                    onClick={handleGenerateImagePrompts}
+                    disabled={loading === 'IMAGE_PROMPTS'}
+                    className="text-xs bg-pink-600 hover:bg-pink-700 text-white px-3 py-2 rounded-lg transition-colors disabled:bg-gray-400 shadow-sm"
+                  >
+                    {loading === 'IMAGE_PROMPTS' ? '⏳ 분석중' : '👥 등장인물'}
                   </button>
                   <button
                     onClick={handleGenerateTitle}
@@ -566,21 +581,6 @@ const App: React.FC = () => {
                   >
                     {loading === 'THUMBNAILS' ? '⏳ 생성중' : '🖼️ 썸네일'}
                   </button>
-                  <button
-                    onClick={handleGenerateImagePrompts}
-                    disabled={loading === 'IMAGE_PROMPTS'}
-                    className="text-xs bg-pink-600 hover:bg-pink-700 text-white px-3 py-2 rounded-lg transition-colors disabled:bg-gray-400 shadow-sm"
-                  >
-                    {loading === 'IMAGE_PROMPTS' ? '⏳ 분석중' : '👥 등장인물'}
-                  </button>
-                  {session.isEditMode && (
-                    <button
-                      onClick={saveEditedScript}
-                      className="text-xs bg-orange-600 hover:bg-orange-700 text-white px-3 py-2 rounded-lg transition-colors shadow-sm"
-                    >
-                      ✅ 저장
-                    </button>
-                  )}
                   <button
                     onClick={handleAnalyze}
                     disabled={loading === 'ANALYZING'}
