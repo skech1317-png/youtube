@@ -109,6 +109,12 @@ const App: React.FC = () => {
 
   // Handler: Step 2 - Generate Script
   const handleGenerateScript = async (topic: string) => {
+    if (!session.apiKey || !session.apiKey.trim()) {
+      alert("⚠️ API 키를 먼저 입력해주세요!\n\n위의 빨간색 섹션에서 본인의 Gemini API 키를 입력하세요.");
+      setErrorMsg("API 키를 먼저 입력해주세요.");
+      return;
+    }
+    
     setLoading('GENERATING');
     setSession(prev => ({ ...prev, selectedTopic: topic }));
     setErrorMsg(null);
@@ -175,6 +181,11 @@ const App: React.FC = () => {
       setErrorMsg("분석할 대본이 없습니다. 먼저 대본을 생성해주세요.");
       return;
     }
+    if (!session.apiKey || !session.apiKey.trim()) {
+      alert("⚠️ API 키를 먼저 입력해주세요!\n\n위의 빨간색 섹션에서 본인의 Gemini API 키를 입력하세요.");
+      setErrorMsg("API 키를 먼저 입력해주세요.");
+      return;
+    }
 
     setLoading('ANALYZING');
     setErrorMsg(null);
@@ -198,6 +209,11 @@ const App: React.FC = () => {
     if (!session.analysis) {
       alert("⚠️ PD 분석을 먼저 실행해주세요!\n\n위의 '🎬 PD분석' 버튼을 클릭하여 대본 분석을 먼저 받으세요.");
       setErrorMsg("먼저 PD 분석을 실행해주세요.");
+      return;
+    }
+    if (!session.apiKey || !session.apiKey.trim()) {
+      alert("⚠️ API 키를 먼저 입력해주세요!\n\n위의 빨간색 섹션에서 본인의 Gemini API 키를 입력하세요.");
+      setErrorMsg("API 키를 먼저 입력해주세요.");
       return;
     }
 
@@ -263,6 +279,11 @@ const App: React.FC = () => {
       setErrorMsg("숏츠를 만들 대본이 없습니다.");
       return;
     }
+    if (!session.apiKey || !session.apiKey.trim()) {
+      alert("⚠️ API 키를 먼저 입력해주세요!\n\n위의 빨간색 섹션에서 본인의 Gemini API 키를 입력하세요.");
+      setErrorMsg("API 키를 먼저 입력해주세요.");
+      return;
+    }
 
     setLoading('SHORTS');
     setErrorMsg(null);
@@ -299,6 +320,11 @@ const App: React.FC = () => {
       setErrorMsg("먼저 대본을 생성해주세요.");
       return;
     }
+    if (!session.apiKey || !session.apiKey.trim()) {
+      alert("⚠️ API 키를 먼저 입력해주세요!\n\n위의 빨간색 섹션에서 본인의 Gemini API 키를 입력하세요.");
+      setErrorMsg("API 키를 먼저 입력해주세요.");
+      return;
+    }
 
     setLoading('TITLE');
     setErrorMsg(null);
@@ -320,6 +346,11 @@ const App: React.FC = () => {
   const handleGenerateThumbnails = async () => {
     if (!session.generatedNewScript) {
       setErrorMsg("먼저 대본을 생성해주세요.");
+      return;
+    }
+    if (!session.apiKey || !session.apiKey.trim()) {
+      alert("⚠️ API 키를 먼저 입력해주세요!\n\n위의 빨간색 섹션에서 본인의 Gemini API 키를 입력하세요.");
+      setErrorMsg("API 키를 먼저 입력해주세요.");
       return;
     }
 
@@ -348,6 +379,11 @@ const App: React.FC = () => {
       setErrorMsg("먼저 대본을 생성해주세요.");
       return;
     }
+    if (!session.apiKey || !session.apiKey.trim()) {
+      alert("⚠️ API 키를 먼저 입력해주세요!\n\n위의 빨간색 섹션에서 본인의 Gemini API 키를 입력하세요.");
+      setErrorMsg("API 키를 먼저 입력해주세요.");
+      return;
+    }
 
     setLoading('IMAGE_PROMPTS');
     setErrorMsg(null);
@@ -370,6 +406,11 @@ const App: React.FC = () => {
   const handleGeneratePlan = async () => {
     if (!session.generatedNewScript) {
       setErrorMsg("기획서를 만들 대본이 없습니다.");
+      return;
+    }
+    if (!session.apiKey || !session.apiKey.trim()) {
+      alert("⚠️ API 키를 먼저 입력해주세요!\n\n위의 빨간색 섹션에서 본인의 Gemini API 키를 입력하세요.");
+      setErrorMsg("API 키를 먼저 입력해주세요.");
       return;
     }
 
