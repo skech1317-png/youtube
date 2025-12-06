@@ -998,36 +998,71 @@ const App: React.FC = () => {
 
           {/* PD 분석 결과 */}
           {session.analysis && (
-            <section className="border-t border-gray-100 pt-6 animate-fade-in bg-red-50 p-6 rounded-lg border-2 border-red-200">
-              <h2 className="text-lg font-bold text-red-800 mb-4">🎬 메인 PD 분석 결과</h2>
+            <section className="border-t border-gray-100 pt-6 animate-fade-in bg-gradient-to-br from-red-50 to-orange-50 p-6 rounded-xl border-4 border-red-500 shadow-xl">
+              <div className="mb-6 bg-red-600 text-white p-4 rounded-lg shadow-md">
+                <h2 className="text-2xl font-bold mb-2 flex items-center gap-2">
+                  🎬 메인 PD의 냉정한 분석
+                </h2>
+                <p className="text-sm opacity-90">100만 구독자 채널 기준 | 타협 없는 직설적 평가</p>
+              </div>
               
               {/* 총평 */}
-              <div className="bg-white p-4 rounded-lg mb-4 border-l-4 border-red-600">
-                <h3 className="font-bold text-sm text-gray-700 mb-2">💬 총평 (직설적)</h3>
-                <p className="text-gray-800 font-medium">{session.analysis.overallComment}</p>
+              <div className="bg-white p-6 rounded-xl mb-4 border-l-8 border-red-600 shadow-lg">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-2xl">💬</span>
+                  <h3 className="font-bold text-lg text-red-700">총평 (직설적, 변명 불가)</h3>
+                </div>
+                <p className="text-xl text-gray-900 font-bold leading-relaxed">{session.analysis.overallComment}</p>
               </div>
 
               {/* 후킹 점수 */}
-              <div className="bg-white p-4 rounded-lg mb-4">
-                <h3 className="font-bold text-sm text-gray-700 mb-2">🎣 후킹 점수</h3>
-                <div className="flex items-center gap-3">
-                  <div className="text-3xl font-bold text-blue-600">{session.analysis.hookingScore}/10</div>
-                  <p className="text-gray-700">{session.analysis.hookingComment}</p>
+              <div className="bg-white p-6 rounded-xl mb-4 shadow-lg">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-2xl">🎣</span>
+                  <h3 className="font-bold text-lg text-gray-700">후킹 점수 (초반 30초 평가)</h3>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className={`text-6xl font-black ${
+                    session.analysis.hookingScore >= 8 ? 'text-green-600' :
+                    session.analysis.hookingScore >= 6 ? 'text-yellow-600' :
+                    session.analysis.hookingScore >= 4 ? 'text-orange-600' :
+                    'text-red-600'
+                  }`}>
+                    {session.analysis.hookingScore}/10
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-lg text-gray-800 font-medium">{session.analysis.hookingComment}</p>
+                    <div className="mt-2 bg-gray-100 p-2 rounded">
+                      <p className="text-xs text-gray-600">
+                        ✓ 3초 안에 시선 잡기 | ✓ 클릭 후 이탈 방지 | ✓ 명확한 가치 제시
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
 
               {/* 논리적 허점 */}
               {session.analysis.logicalFlaws.length > 0 && (
-                <div className="bg-white p-4 rounded-lg mb-4">
-                  <h3 className="font-bold text-sm text-gray-700 mb-3">⚠️ 논리적 허점 ({session.analysis.logicalFlaws.length}개)</h3>
-                  <div className="space-y-3">
+                <div className="bg-white p-6 rounded-xl mb-4 shadow-lg">
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="text-2xl">⚠️</span>
+                    <h3 className="font-bold text-lg text-yellow-700">논리적 허점 ({session.analysis.logicalFlaws.length}개 발견)</h3>
+                  </div>
+                  <div className="space-y-4">
                     {session.analysis.logicalFlaws.map((flaw, idx) => (
-                      <div key={idx} className="border-l-4 border-yellow-500 pl-3">
-                        <p className="text-xs text-gray-500 mb-1">원문:</p>
-                        <p className="text-sm text-gray-700 mb-2 italic">"{flaw.original}"</p>
-                        <p className="text-xs text-red-600 font-bold mb-1">문제점: {flaw.issue}</p>
-                        <p className="text-xs text-green-700">✅ 수정안:</p>
-                        <p className="text-sm text-green-800 font-medium">"{flaw.suggestion}"</p>
+                      <div key={idx} className="border-l-4 border-yellow-500 pl-4 bg-yellow-50 p-4 rounded-r-lg">
+                        <div className="mb-3">
+                          <p className="text-xs text-gray-500 font-bold mb-1">❌ 문제 구간:</p>
+                          <p className="text-sm text-gray-800 italic bg-white p-2 rounded border border-yellow-200">"{flaw.original}"</p>
+                        </div>
+                        <div className="mb-3 bg-red-50 p-3 rounded border border-red-200">
+                          <p className="text-xs text-red-600 font-bold mb-1">🚨 치명적 약점:</p>
+                          <p className="text-sm text-red-700 font-medium">{flaw.issue}</p>
+                        </div>
+                        <div className="bg-green-50 p-3 rounded border border-green-300">
+                          <p className="text-xs text-green-700 font-bold mb-1">✅ PD 수정안:</p>
+                          <p className="text-sm text-green-800 font-bold">"{flaw.suggestion}"</p>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -1036,13 +1071,21 @@ const App: React.FC = () => {
 
               {/* 지루함 경보 */}
               {session.analysis.boringParts.length > 0 && (
-                <div className="bg-white p-4 rounded-lg mb-4">
-                  <h3 className="font-bold text-sm text-gray-700 mb-3">😴 지루함 경보 ({session.analysis.boringParts.length}개)</h3>
-                  <div className="space-y-2">
+                <div className="bg-white p-6 rounded-xl mb-4 shadow-lg">
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="text-2xl">😴</span>
+                    <h3 className="font-bold text-lg text-orange-700">지루함 경보 - 이탈 위험 구간 ({session.analysis.boringParts.length}개)</h3>
+                  </div>
+                  <div className="space-y-3">
                     {session.analysis.boringParts.map((part, idx) => (
-                      <div key={idx} className="border-l-4 border-orange-400 pl-3 bg-orange-50 p-2 rounded">
-                        <p className="text-sm text-gray-700 italic mb-1">"{part.original}"</p>
-                        <p className="text-xs text-orange-700 font-bold">⚡ 이유: {part.reason}</p>
+                      <div key={idx} className="border-l-4 border-orange-500 pl-4 bg-orange-50 p-3 rounded-r-lg">
+                        <div className="mb-2">
+                          <p className="text-xs text-orange-600 font-bold mb-1">⚡ 시청자 이탈 예상 구간:</p>
+                          <p className="text-sm text-gray-800 italic bg-white p-2 rounded border border-orange-200">"{part.original}"</p>
+                        </div>
+                        <div className="bg-red-100 p-2 rounded border border-red-300">
+                          <p className="text-xs text-red-700 font-bold">💥 이탈 원인: {part.reason}</p>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -1050,25 +1093,33 @@ const App: React.FC = () => {
               )}
 
               {/* 액션 플랜 */}
-              <div className="bg-red-600 text-white p-4 rounded-lg">
-                <h3 className="font-bold text-sm mb-2">🚨 당장 고쳐야 할 1가지</h3>
-                <p className="font-medium text-lg">{session.analysis.actionPlan}</p>
+              <div className="bg-gradient-to-r from-red-600 to-red-800 text-white p-6 rounded-xl shadow-2xl border-4 border-red-900">
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="text-4xl">🚨</span>
+                  <h3 className="font-black text-2xl">당장 고쳐야 할 1가지 (최우선)</h3>
+                </div>
+                <div className="bg-white bg-opacity-20 p-4 rounded-lg backdrop-blur">
+                  <p className="font-bold text-2xl leading-relaxed">{session.analysis.actionPlan}</p>
+                </div>
+                <p className="text-xs mt-3 opacity-90">이것만 고쳐도 영상이 살아납니다. 지금 바로 수정하세요.</p>
               </div>
 
               {/* 대본 개선 버튼 */}
-              <div className="mt-4 flex justify-center">
+              <div className="mt-6 flex justify-center">
                 <button
                   onClick={handleImproveScript}
                   disabled={loading === 'IMPROVING'}
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105"
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-4 px-10 rounded-xl shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105 text-lg"
                 >
                   {loading === 'IMPROVING' ? (
-                    <span className="flex items-center gap-2">
-                      <span className="animate-spin">⚙️</span> 대본 개선중...
+                    <span className="flex items-center gap-3">
+                      <div className="h-6 w-6 border-3 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>PD 피드백 반영하여 대본 개선 중...</span>
                     </span>
                   ) : (
-                    <span className="flex items-center gap-2">
-                      🔧 PD 분석 반영하여 대본 개선하기
+                    <span className="flex items-center gap-3">
+                      <span className="text-2xl">🔧</span>
+                      <span>PD 분석 결과를 반영하여 대본 자동 개선하기</span>
                     </span>
                   )}
                 </button>

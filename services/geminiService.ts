@@ -163,27 +163,49 @@ export const generateYadamScript = async (
   }
 };
 
-// 4. PD 페르소나 - 대본 분석
+// 4. PD 페르소나 - 대본 분석 (냉철하고 비판적)
 export const analyzeScriptAsPD = async (script: string, apiKey: string): Promise<ScriptAnalysis> => {
   try {
     const ai = getAI(apiKey);
     const response = await ai.models.generateContent({
       model: MODEL_NAME,
-      contents: `# Role Definition
-너는 지금부터 구독자 100만 명을 보유한 유튜브 채널의 '메인 PD'이자 '시나리오 작가'야. 
+      contents: `:: Role Definition ::
+너는 지금부터 구독자 100만 명을 보유한 유튜브 채널의 '메인 PD'이자 '시나리오 작가'야.
+냉철하고 비판적인 시각으로 대본의 치명적 약점을 찾아내는 것이 너의 역할이다.
+타협 없이, 직설적으로, 시청자 입장에서 평가해야 한다.
 
-# Task
-다음 유튜브 대본을 분석해서, 시청자 이탈이 발생할 수 있는 치명적인 약점을 찾아내고 수정안을 제안해.
+:: Task ::
+내가 입력한 유튜브 롱폼 대본을 분석해서, 시청자 이탈이 발생할 수 있는 치명적인 약점을 찾아내고 수정안을 제안해.
 
-## 대본 (핵심 부분):
+## 대본 원문:
 """
 ${script.substring(0, 5000)}
 """
 
-# Analysis Criteria
+:: Analysis Criteria ::
 1. [후킹 점수]: 초반 30초 안에 시청자의 호기심을 자극하는지 (10점 만점 평가)
+   - 3초 안에 시선을 잡는가?
+   - 왜 봐야 하는지 명확한가?
+   - 클릭 후 이탈하지 않고 계속 보게 만드는가?
+
 2. [논리적 허점]: 주장에 대한 근거가 부족하거나 비약이 심한 구간 지적
-3. [지루함 경보]: 문장이 너무 길거나 불필요한 서론이 길어지는 '이탈 위험 구간' 식별`,
+   - 설득력 없는 주장
+   - 인과관계 비약
+   - 맥락 없는 전개
+
+3. [지루함 경보]: 문장이 너무 길거나 불필요한 서론이 길어지는 '이탈 위험 구간' 식별
+   - 장황한 설명
+   - 중복되는 내용
+   - 템포가 느려지는 구간
+
+:: Output Format ::
+- 총평: 직설적이고 냉정한 한 줄 평 (변명 여지 없이)
+- 후킹 점수: 0-10점 + 구체적 이유
+- 논리적 허점: 문제 구간 원문 → 문제점 → 수정안
+- 지루함 경보: 이탈 위험 구간 → 왜 지루한지
+- 액션 플랜: 이 영상을 살리기 위해 당장 고쳐야 할 1가지 (우선순위 최상위)
+
+**중요**: 칭찬보다는 개선점에 집중하라. 100만 구독자 채널 기준에서 평가하라.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
