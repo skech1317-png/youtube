@@ -47,7 +47,7 @@ export const suggestTopicsFromScript = async (script: string, apiKey: string): P
   }
 };
 
-// 2. 대본 작성 함수
+// 2. 대본 작성 함수 (제목-내용 일치 강화)
 export const generateScriptForTopic = async (
   topic: string, 
   originalContext: string,
@@ -61,24 +61,40 @@ export const generateScriptForTopic = async (
       : historyContext;
       
     const historyPrompt = trimmedHistory 
-      ? `\n\n[참고용 과거 대본 스타일]\n${trimmedHistory}\n위 스타일을 참고하되, 주제에 맞게 새롭게 작성해주세요.`
+      ? `\n\n[참고용 과거 대본 스타일]\n${trimmedHistory}\n\n⚠️ 위 스타일은 참고만 하고, 내용은 아래 주제에 100% 맞춰 완전히 새로 창작하세요.`
       : '';
 
     const response = await ai.models.generateContent({
       model: MODEL_NAME,
-      contents: `다음 주제로 유튜브 영상 대본을 작성해줘.
-      
-      주제: "${topic}"
-      참고(이전 대본 맥락): "${originalContext.substring(0, 500)}..."
-      ${historyPrompt}
-      
-      형식:
-      [오프닝] - 시청자의 주의를 끄는 멘트
-      [본론] - 핵심 내용 3가지
-      [클로징] - 요약 및 구독 유도
-      
-      한글로 자연스럽게 작성해줘.`,
-      config: {}
+      contents: `:: 핵심 미션 ::
+너는 유튜브 대본 작가야. 아래 주제(제목)에 딱 맞는 대본을 창작해야 해.
+
+:: 주제(제목) ::
+"${topic}"
+
+:: 중요 ::
+- 대본의 모든 내용은 위 주제("${topic}")를 직접적으로 다뤄야 함
+- 주제에서 벗어나면 안 됨
+- 제목을 보고 들어온 시청자가 "이거 아니네?" 하면 안 됨
+- 제목이 약속한 내용을 100% 전달할 것
+
+:: 참고 자료 (스타일만 참고) ::
+${originalContext.substring(0, 500)}...
+${historyPrompt}
+
+:: 대본 구조 ::
+[오프닝] - 주제("${topic}")를 언급하며 호기심 유발
+[본론] - "${topic}"에 대한 핵심 내용 3가지
+[클로징] - "${topic}" 요약 및 구독 유도
+
+:: 길이 ::
+8,000-10,000자
+
+한글로 자연스럽게, 주제에 완벽히 맞게 작성해줘.`,
+      config: {
+        temperature: 0.8,
+        topP: 0.95
+      }
     });
 
     return response.text || "대본을 생성하지 못했습니다.";
@@ -124,36 +140,57 @@ export const generateYadamScript = async (
 
     const response = await ai.models.generateContent({
       model: MODEL_NAME,
-      contents: `너는 조선시대 야담 전문 스토리텔러야. 
-      
-      주제: "${topic}"
-      
-      사용자가 입력한 대본 (참고용):
-      """
-      ${trimmedOriginal}
-      """
-      ${historyPrompt}
-      
-      ## 핵심 지침:
-      **위 주제("${topic}")에 딱 맞는 완전히 새로운 조선시대 야담 이야기를 창작해줘.**
-      
-      - 입력 대본의 스타일(문체, 후킹 방식, 구성)은 참고하되
-      - **내용은 주제에 맞는 완전히 새로운 이야기**를 만들어줘
-      - 주제 제목과 100% 일치하는 내용이어야 함
-      - 길이: ${targetLength}
-      
-      ## 야담 스타일 특징:
-      - 조선시대 배경의 생생한 일화
-      - "전하는 바에 의하면", "옛날 어느 때" 같은 구전 화법
-      - 짧고 흥미진진한 사건 전개
-      - 통쾌한 반전이나 교훈
-      
-      형식:
-      [도입] - 호기심을 자극하는 오프닝
-      [전개] - 구체적인 상황과 갈등 전개
-      [절정] - 통쾌한 반전
-      [마무리] - 여운과 교훈`,
-      config: {}
+      contents: `:: Role ::
+너는 조선시대 야담 전문 스토리텔러야.
+
+:: 핵심 미션 ::
+아래 주제(제목)에 **완벽하게 일치하는** 조선시대 야담 이야기를 창작해야 해.
+
+:: 주제(제목) ::
+"${topic}"
+
+:: 절대 규칙 ::
+1. 이야기의 모든 내용은 "${topic}"를 직접 다뤄야 함
+2. 주제에서 1%도 벗어나면 안 됨
+3. 제목 = 내용 (100% 일치 필수)
+4. 시청자가 "제목이랑 다르네?"라고 느끼면 실패
+5. 주제가 약속한 내용을 반드시 전달할 것
+
+:: 참고 자료 (스타일만 참고, 내용은 주제에 맞게 새로 창작) ::
+"""
+${trimmedOriginal}
+"""
+${historyPrompt}
+
+⚠️ 위 대본은 문체/구성/후킹 방식만 참고하고, 내용은 "${topic}"에 딱 맞는 완전히 새로운 조선시대 이야기를 창작하세요.
+
+:: 야담 스타일 특징 ::
+- 조선시대 배경의 생생한 실화 같은 일화
+- "전하는 바에 의하면", "옛날 어느 때", "한양 어느 골목에" 같은 구전 화법
+- 짧고 강렬한 문장, 흥미진진한 사건 전개
+- 통쾌한 반전이나 교훈
+- 등장인물의 생생한 대사와 행동
+
+:: 대본 구조 ::
+[도입] - "${topic}"를 언급하며 호기심 자극
+[전개] - "${topic}"의 핵심 사건 전개 (구체적 상황, 인물, 갈등)
+[절정] - "${topic}"의 클라이막스 (반전/충격)
+[마무리] - "${topic}"의 결말과 교훈
+
+:: 길이 ::
+${targetLength}
+
+:: 최종 체크리스트 ::
+✓ 제목("${topic}")과 내용이 100% 일치하는가?
+✓ 주제를 직접적으로 다루고 있는가?
+✓ 조선시대 야담 스타일인가?
+✓ 호기심과 몰입을 유도하는가?
+
+이제 창작 시작!`,
+      config: {
+        temperature: 0.85,
+        topP: 0.95
+      }
     });
 
     return response.text || "야담 대본을 생성하지 못했습니다.";
