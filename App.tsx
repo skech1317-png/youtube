@@ -100,8 +100,10 @@ const App: React.FC = () => {
         selectedTopic: null,    // Reset selection
         generatedNewScript: null // Reset result
       }));
-    } catch (e) {
-      setErrorMsg("주제 추천 실패: AI 연결 상태를 확인해주세요.");
+    } catch (e: any) {
+      console.error('주제 추천 실패:', e);
+      setErrorMsg(`주제 추천 실패: ${e.message || 'AI 연결 상태를 확인해주세요.'}`);
+      alert(`❌ 오류 발생\n\n${e.message || 'AI 연결 상태를 확인해주세요.'}\n\n브라우저 콘솔(F12)에서 자세한 내용을 확인하세요.`);
     } finally {
       setLoading('IDLE');
     }
@@ -610,7 +612,10 @@ const App: React.FC = () => {
                     type="password"
                     placeholder="여기에 본인의 Gemini API 키를 입력하세요"
                     value={session.apiKey}
-                    onChange={(e) => setSession(prev => ({ ...prev, apiKey: e.target.value }))}
+                    onChange={(e) => {
+                      const trimmedKey = e.target.value.trim();
+                      setSession(prev => ({ ...prev, apiKey: trimmedKey }));
+                    }}
                     className="w-full p-4 border-2 border-red-400 rounded-lg focus:border-red-600 focus:ring-2 focus:ring-red-200 transition-all font-mono text-base"
                   />
                 </div>
