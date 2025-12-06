@@ -17,6 +17,22 @@ const App: React.FC = () => {
   // State
   const [session, setSession] = useState<ScriptSession>(INITIAL_SESSION);
   const [loading, setLoading] = useState<'IDLE' | 'SUGGESTING' | 'GENERATING' | 'ANALYZING' | 'IMPROVING' | 'SHORTS' | 'IMAGE_PROMPTS' | 'TITLE' | 'THUMBNAILS' | 'PLANNING'>('IDLE');
+
+  // 로딩 메시지 헬퍼
+  const getLoadingMessage = () => {
+    switch (loading) {
+      case 'SUGGESTING': return '🔍 대본 DNA 분석 중...';
+      case 'GENERATING': return '✍️ 새로운 대본 작성 중...';
+      case 'TITLE': return '🎬 매력적인 제목 생성 중...';
+      case 'THUMBNAILS': return '🖼️ 클릭률 높은 썸네일 구상 중...';
+      case 'IMAGE_PROMPTS': return '👥 등장인물 이미지 생성 중...';
+      case 'ANALYZING': return '📊 PD 분석 중...';
+      case 'IMPROVING': return '🔧 대본 개선 중...';
+      case 'SHORTS': return '📱 숏츠 대본 제작 중...';
+      case 'PLANNING': return '📋 채널 기획서 작성 중...';
+      default: return null;
+    }
+  };
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState<boolean>(false);
   const [compareMode, setCompareMode] = useState<boolean>(false);
@@ -121,28 +137,35 @@ const App: React.FC = () => {
       // 히스토리에 자동 추가
       saveToHistory(topic, script, false);
 
-      // 대본 생성 완료 후 자동으로 제목과 등장인물 생성
-      try {
-        // 제목 자동 생성
-        const title = await generateVideoTitle(script, session.apiKey);
-        setSession(prev => ({
-          ...prev,
-          videoTitle: title,
-        }));
-
-        // 등장인물 자동 생성
-        const prompts = await generateImagePrompts(script, session.apiKey);
-        setSession(prev => ({
-          ...prev,
-          imagePrompts: prompts,
-        }));
-      } catch (autoGenError) {
-        console.log('자동 생성 중 오류:', autoGenError);
-      }
+      // 대본 생성 완료 후 자동으로 제목, 썸네일, 등장인물 이미지 프롬프트 생성
+      await generateAllMetadata(script);
     } catch (e) {
       setErrorMsg("대본 생성 실패: 잠시 후 다시 시도해주세요.");
     } finally {
       setLoading('IDLE');
+    }
+  };
+
+  // 대본의 메타데이터 자동 생성 (제목, 썸네일, 등장인물)
+  const generateAllMetadata = async (script: string) => {
+    try {
+      // 1. 제목 생성
+      setLoading('TITLE');
+      const title = await generateVideoTitle(script, session.apiKey);
+      setSession(prev => ({ ...prev, videoTitle: title }));
+
+      // 2. 썸네일 프롬프트 생성 (제목 반영)
+      setLoading('THUMBNAILS');
+      const thumbnails = await generateThumbnails(script, title, session.apiKey);
+      setSession(prev => ({ ...prev, thumbnails }));
+
+      // 3. 등장인물 이미지 프롬프트 생성
+      setLoading('IMAGE_PROMPTS');
+      const imagePrompts = await generateImagePrompts(script, session.apiKey);
+      setSession(prev => ({ ...prev, imagePrompts }));
+    } catch (e) {
+      console.error('메타데이터 생성 실패:', e);
+      // 메타데이터 생성 실패는 치명적이지 않으므로 에러 메시지만 표시
     }
   };
 
@@ -173,9 +196,20 @@ const App: React.FC = () => {
       return;
     }
     if (!session.analysis) {
+      alert("⚠️ PD 분석을 먼저 실행해주세요!\n\n위의 '🎬 PD분석' 버튼을 클릭하여 대본 분석을 먼저 받으세요.");
       setErrorMsg("먼저 PD 분석을 실행해주세요.");
       return;
     }
+
+    // 확인 메시지
+    const confirmImprove = window.confirm(
+      `🔧 PD 분석 결과를 반영하여 대본을 개선합니다.\n\n` +
+      `📊 현재 후킹 점수: ${session.analysis.hookingScore}/10\n` +
+      `⚠️ 발견된 문제: 논리적 허점 ${session.analysis.logicalFlaws.length}개, 지루함 경보 ${session.analysis.boringParts.length}개\n\n` +
+      `계속하시겠습니까?`
+    );
+
+    if (!confirmImprove) return;
 
     setLoading('IMPROVING');
     setErrorMsg(null);
@@ -187,19 +221,37 @@ const App: React.FC = () => {
         session.apiKey
       );
       
+      // 개선 전 대본 백업
+      const beforeImprovement = session.generatedNewScript;
+      
       setSession(prev => ({ 
         ...prev, 
         generatedNewScript: improvedScript,
+        // 분석 결과 초기화 (새로운 대본이므로 재분석 필요)
+        analysis: null,
+        // 메타데이터도 초기화 (재생성 필요)
+        videoTitle: null,
+        thumbnails: [],
+        imagePrompts: [],
       }));
 
       // 개선된 대본을 히스토리에 추가
       if (session.selectedTopic) {
-        saveToHistory(session.selectedTopic + ' (PD분석 개선)', improvedScript, true);
+        saveToHistory(session.selectedTopic + ' (PD개선ver)', improvedScript, true);
       }
 
-      alert('PD 분석을 반영하여 대본이 개선되었습니다!');
+      // 자동으로 메타데이터 재생성
+      await generateAllMetadata(improvedScript);
+
+      alert(
+        '✅ 대본 개선 완료!\n\n' +
+        '🎯 PD 피드백이 모두 반영되었습니다.\n' +
+        '📝 제목, 썸네일, 등장인물도 새로 생성되었습니다.\n\n' +
+        '💡 개선된 대본을 다시 PD 분석해보세요!'
+      );
     } catch (e) {
       setErrorMsg("대본 개선 실패: 잠시 후 다시 시도해주세요.");
+      console.error('대본 개선 에러:', e);
     } finally {
       setLoading('IDLE');
     }
@@ -594,6 +646,17 @@ const App: React.FC = () => {
           {/* API 키가 있을 때만 나머지 UI 표시 */}
           {session.apiKey && session.apiKey.trim().length > 0 && (
             <>
+          {/* 전체 로딩 상태 표시 */}
+          {loading !== 'IDLE' && (
+            <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-4 rounded-xl mb-6 shadow-lg animate-pulse">
+              <div className="flex items-center justify-center gap-3">
+                <div className="h-8 w-8 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
+                <span className="text-xl font-bold">{getLoadingMessage()}</span>
+              </div>
+              <p className="text-center text-sm mt-2 opacity-90">잠시만 기다려주세요...</p>
+            </div>
+          )}
+
           {/* STEP 0: 대본 스타일 선택 */}
           <section className="bg-blue-50 p-4 rounded-lg border-2 border-blue-200">
             <label className="block text-sm font-bold text-gray-700 mb-2">
@@ -776,10 +839,10 @@ const App: React.FC = () => {
                         <span className="text-2xl">📜</span>
                         <span className="font-bold text-xl text-gray-800">{topic}</span>
                       </div>
-                      {loading === 'GENERATING' && session.selectedTopic === topic ? (
+                      {(loading === 'GENERATING' || loading === 'TITLE' || loading === 'THUMBNAILS' || loading === 'IMAGE_PROMPTS') && session.selectedTopic === topic ? (
                         <div className="flex items-center gap-2">
                           <div className="h-6 w-6 border-3 border-green-600 border-t-transparent rounded-full animate-spin"></div>
-                          <span className="text-sm text-green-700 font-medium">대본 작성 중...</span>
+                          <span className="text-sm text-green-700 font-medium">{getLoadingMessage()}</span>
                         </div>
                       ) : (
                         <span className="text-green-600 text-xl">→</span>
@@ -922,38 +985,128 @@ const App: React.FC = () => {
             </section>
           )}
 
+          {/* 등장인물 이미지 프롬프트 */}
+          {session.imagePrompts.length > 0 && (
+            <section className="border-t border-gray-100 pt-6 animate-fade-in">
+              <div className="flex justify-between items-center mb-4">
+                <label className="block text-sm font-bold text-gray-700">
+                  👥 등장인물 이미지 프롬프트 ({session.imagePrompts.length}명)
+                </label>
+                <button
+                  onClick={() => setSession(prev => ({ ...prev, imagePrompts: [] }))}
+                  className="text-xs bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded"
+                >
+                  닫기
+                </button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {session.imagePrompts.map((prompt, idx) => (
+                  <div key={idx} className="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 rounded-lg border-2 border-blue-300">
+                    <div className="mb-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-sm">
+                          {prompt.sceneNumber}
+                        </span>
+                        <h4 className="font-bold text-blue-800">{prompt.koreanDescription}</h4>
+                      </div>
+                      <div className="bg-white p-2 rounded border border-blue-200">
+                        <p className="text-xs text-gray-500 mb-1">대본 속 등장:</p>
+                        <p className="text-sm text-gray-700 italic">"{prompt.sentence}"</p>
+                      </div>
+                    </div>
+                    <div className="bg-black text-green-400 p-3 rounded font-mono text-xs overflow-x-auto">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-gray-400">AI Image Prompt:</span>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(prompt.imagePrompt);
+                            alert('프롬프트가 복사되었습니다!');
+                          }}
+                          className="text-xs bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded"
+                        >
+                          📋 복사
+                        </button>
+                      </div>
+                      {prompt.imagePrompt}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-xs text-blue-800">
+                  💡 <strong>사용 방법:</strong> 각 캐릭터의 프롬프트를 AI 이미지 생성 툴에 복사하여 일관된 캐릭터 이미지를 만드세요.
+                </p>
+              </div>
+            </section>
+          )}
+
           {/* PD 분석 결과 */}
           {session.analysis && (
-            <section className="border-t border-gray-100 pt-6 animate-fade-in bg-red-50 p-6 rounded-lg border-2 border-red-200">
-              <h2 className="text-lg font-bold text-red-800 mb-4">🎬 메인 PD 분석 결과</h2>
+            <section className="border-t border-gray-100 pt-6 animate-fade-in bg-gradient-to-br from-red-50 to-orange-50 p-6 rounded-xl border-4 border-red-500 shadow-xl">
+              <div className="mb-6 bg-red-600 text-white p-4 rounded-lg shadow-md">
+                <h2 className="text-2xl font-bold mb-2 flex items-center gap-2">
+                  🎬 메인 PD의 냉정한 분석
+                </h2>
+                <p className="text-sm opacity-90">100만 구독자 채널 기준 | 타협 없는 직설적 평가</p>
+              </div>
               
               {/* 총평 */}
-              <div className="bg-white p-4 rounded-lg mb-4 border-l-4 border-red-600">
-                <h3 className="font-bold text-sm text-gray-700 mb-2">💬 총평 (직설적)</h3>
-                <p className="text-gray-800 font-medium">{session.analysis.overallComment}</p>
+              <div className="bg-white p-6 rounded-xl mb-4 border-l-8 border-red-600 shadow-lg">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-2xl">💬</span>
+                  <h3 className="font-bold text-lg text-red-700">총평 (직설적, 변명 불가)</h3>
+                </div>
+                <p className="text-xl text-gray-900 font-bold leading-relaxed">{session.analysis.overallComment}</p>
               </div>
 
               {/* 후킹 점수 */}
-              <div className="bg-white p-4 rounded-lg mb-4">
-                <h3 className="font-bold text-sm text-gray-700 mb-2">🎣 후킹 점수</h3>
-                <div className="flex items-center gap-3">
-                  <div className="text-3xl font-bold text-blue-600">{session.analysis.hookingScore}/10</div>
-                  <p className="text-gray-700">{session.analysis.hookingComment}</p>
+              <div className="bg-white p-6 rounded-xl mb-4 shadow-lg">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-2xl">🎣</span>
+                  <h3 className="font-bold text-lg text-gray-700">후킹 점수 (초반 30초 평가)</h3>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className={`text-6xl font-black ${
+                    session.analysis.hookingScore >= 8 ? 'text-green-600' :
+                    session.analysis.hookingScore >= 6 ? 'text-yellow-600' :
+                    session.analysis.hookingScore >= 4 ? 'text-orange-600' :
+                    'text-red-600'
+                  }`}>
+                    {session.analysis.hookingScore}/10
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-lg text-gray-800 font-medium">{session.analysis.hookingComment}</p>
+                    <div className="mt-2 bg-gray-100 p-2 rounded">
+                      <p className="text-xs text-gray-600">
+                        ✓ 3초 안에 시선 잡기 | ✓ 클릭 후 이탈 방지 | ✓ 명확한 가치 제시
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
 
               {/* 논리적 허점 */}
               {session.analysis.logicalFlaws.length > 0 && (
-                <div className="bg-white p-4 rounded-lg mb-4">
-                  <h3 className="font-bold text-sm text-gray-700 mb-3">⚠️ 논리적 허점 ({session.analysis.logicalFlaws.length}개)</h3>
-                  <div className="space-y-3">
+                <div className="bg-white p-6 rounded-xl mb-4 shadow-lg">
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="text-2xl">⚠️</span>
+                    <h3 className="font-bold text-lg text-yellow-700">논리적 허점 ({session.analysis.logicalFlaws.length}개 발견)</h3>
+                  </div>
+                  <div className="space-y-4">
                     {session.analysis.logicalFlaws.map((flaw, idx) => (
-                      <div key={idx} className="border-l-4 border-yellow-500 pl-3">
-                        <p className="text-xs text-gray-500 mb-1">원문:</p>
-                        <p className="text-sm text-gray-700 mb-2 italic">"{flaw.original}"</p>
-                        <p className="text-xs text-red-600 font-bold mb-1">문제점: {flaw.issue}</p>
-                        <p className="text-xs text-green-700">✅ 수정안:</p>
-                        <p className="text-sm text-green-800 font-medium">"{flaw.suggestion}"</p>
+                      <div key={idx} className="border-l-4 border-yellow-500 pl-4 bg-yellow-50 p-4 rounded-r-lg">
+                        <div className="mb-3">
+                          <p className="text-xs text-gray-500 font-bold mb-1">❌ 문제 구간:</p>
+                          <p className="text-sm text-gray-800 italic bg-white p-2 rounded border border-yellow-200">"{flaw.original}"</p>
+                        </div>
+                        <div className="mb-3 bg-red-50 p-3 rounded border border-red-200">
+                          <p className="text-xs text-red-600 font-bold mb-1">🚨 치명적 약점:</p>
+                          <p className="text-sm text-red-700 font-medium">{flaw.issue}</p>
+                        </div>
+                        <div className="bg-green-50 p-3 rounded border border-green-300">
+                          <p className="text-xs text-green-700 font-bold mb-1">✅ PD 수정안:</p>
+                          <p className="text-sm text-green-800 font-bold">"{flaw.suggestion}"</p>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -962,13 +1115,21 @@ const App: React.FC = () => {
 
               {/* 지루함 경보 */}
               {session.analysis.boringParts.length > 0 && (
-                <div className="bg-white p-4 rounded-lg mb-4">
-                  <h3 className="font-bold text-sm text-gray-700 mb-3">😴 지루함 경보 ({session.analysis.boringParts.length}개)</h3>
-                  <div className="space-y-2">
+                <div className="bg-white p-6 rounded-xl mb-4 shadow-lg">
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="text-2xl">😴</span>
+                    <h3 className="font-bold text-lg text-orange-700">지루함 경보 - 이탈 위험 구간 ({session.analysis.boringParts.length}개)</h3>
+                  </div>
+                  <div className="space-y-3">
                     {session.analysis.boringParts.map((part, idx) => (
-                      <div key={idx} className="border-l-4 border-orange-400 pl-3 bg-orange-50 p-2 rounded">
-                        <p className="text-sm text-gray-700 italic mb-1">"{part.original}"</p>
-                        <p className="text-xs text-orange-700 font-bold">⚡ 이유: {part.reason}</p>
+                      <div key={idx} className="border-l-4 border-orange-500 pl-4 bg-orange-50 p-3 rounded-r-lg">
+                        <div className="mb-2">
+                          <p className="text-xs text-orange-600 font-bold mb-1">⚡ 시청자 이탈 예상 구간:</p>
+                          <p className="text-sm text-gray-800 italic bg-white p-2 rounded border border-orange-200">"{part.original}"</p>
+                        </div>
+                        <div className="bg-red-100 p-2 rounded border border-red-300">
+                          <p className="text-xs text-red-700 font-bold">💥 이탈 원인: {part.reason}</p>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -976,28 +1137,77 @@ const App: React.FC = () => {
               )}
 
               {/* 액션 플랜 */}
-              <div className="bg-red-600 text-white p-4 rounded-lg">
-                <h3 className="font-bold text-sm mb-2">🚨 당장 고쳐야 할 1가지</h3>
-                <p className="font-medium text-lg">{session.analysis.actionPlan}</p>
+              <div className="bg-gradient-to-r from-red-600 to-red-800 text-white p-6 rounded-xl shadow-2xl border-4 border-red-900">
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="text-4xl">🚨</span>
+                  <h3 className="font-black text-2xl">당장 고쳐야 할 1가지 (최우선)</h3>
+                </div>
+                <div className="bg-white bg-opacity-20 p-4 rounded-lg backdrop-blur">
+                  <p className="font-bold text-2xl leading-relaxed">{session.analysis.actionPlan}</p>
+                </div>
+                <p className="text-xs mt-3 opacity-90">이것만 고쳐도 영상이 살아납니다. 지금 바로 수정하세요.</p>
               </div>
 
-              {/* 대본 개선 버튼 */}
-              <div className="mt-4 flex justify-center">
-                <button
-                  onClick={handleImproveScript}
-                  disabled={loading === 'IMPROVING'}
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105"
-                >
-                  {loading === 'IMPROVING' ? (
-                    <span className="flex items-center gap-2">
-                      <span className="animate-spin">⚙️</span> 대본 개선중...
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-2">
-                      🔧 PD 분석 반영하여 대본 개선하기
-                    </span>
-                  )}
-                </button>
+              {/* 문제 요약 & 대본 개선 버튼 */}
+              <div className="mt-6 bg-gradient-to-br from-blue-50 to-purple-50 p-6 rounded-xl border-2 border-blue-300">
+                <div className="mb-4">
+                  <h3 className="font-bold text-xl text-gray-800 mb-3 flex items-center gap-2">
+                    <span>📊</span> 분석 요약
+                  </h3>
+                  <div className="grid grid-cols-3 gap-4 mb-4">
+                    <div className="bg-white p-4 rounded-lg text-center shadow-sm">
+                      <p className="text-xs text-gray-600 mb-1">후킹 점수</p>
+                      <p className={`text-3xl font-black ${
+                        session.analysis.hookingScore >= 8 ? 'text-green-600' :
+                        session.analysis.hookingScore >= 6 ? 'text-yellow-600' :
+                        session.analysis.hookingScore >= 4 ? 'text-orange-600' :
+                        'text-red-600'
+                      }`}>
+                        {session.analysis.hookingScore}/10
+                      </p>
+                    </div>
+                    <div className="bg-white p-4 rounded-lg text-center shadow-sm">
+                      <p className="text-xs text-gray-600 mb-1">논리적 허점</p>
+                      <p className="text-3xl font-black text-yellow-600">{session.analysis.logicalFlaws.length}개</p>
+                    </div>
+                    <div className="bg-white p-4 rounded-lg text-center shadow-sm">
+                      <p className="text-xs text-gray-600 mb-1">지루함 경보</p>
+                      <p className="text-3xl font-black text-orange-600">{session.analysis.boringParts.length}개</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-center">
+                  <button
+                    onClick={handleImproveScript}
+                    disabled={loading === 'IMPROVING'}
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-5 px-12 rounded-xl shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105 text-xl"
+                  >
+                    {loading === 'IMPROVING' ? (
+                      <span className="flex items-center gap-3">
+                        <div className="h-7 w-7 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
+                        <span>PD 피드백 반영 중... (30초 소요)</span>
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-3">
+                        <span className="text-3xl">🔧</span>
+                        <div>
+                          <div>PD 분석 결과 반영하여 대본 자동 개선</div>
+                          <div className="text-xs opacity-90 mt-1">
+                            논리적 허점 보완 + 후킹 강화 + 템포 조절
+                          </div>
+                        </div>
+                      </span>
+                    )}
+                  </button>
+                </div>
+                
+                <div className="mt-4 p-4 bg-blue-100 rounded-lg border border-blue-300">
+                  <p className="text-sm text-blue-900">
+                    <strong>💡 작동 방식:</strong> AI가 PD의 모든 피드백을 반영하여 대본을 자동으로 재작성합니다. 
+                    후킹 강화, 논리 보완, 지루한 구간 간결화가 자동으로 진행됩니다.
+                  </p>
+                </div>
               </div>
             </section>
           )}

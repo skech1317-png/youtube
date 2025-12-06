@@ -47,7 +47,7 @@ export const suggestTopicsFromScript = async (script: string, apiKey: string): P
   }
 };
 
-// 2. 대본 작성 함수
+// 2. 대본 작성 함수 (제목-내용 일치 강화)
 export const generateScriptForTopic = async (
   topic: string, 
   originalContext: string,
@@ -61,24 +61,40 @@ export const generateScriptForTopic = async (
       : historyContext;
       
     const historyPrompt = trimmedHistory 
-      ? `\n\n[참고용 과거 대본 스타일]\n${trimmedHistory}\n위 스타일을 참고하되, 주제에 맞게 새롭게 작성해주세요.`
+      ? `\n\n[참고용 과거 대본 스타일]\n${trimmedHistory}\n\n⚠️ 위 스타일은 참고만 하고, 내용은 아래 주제에 100% 맞춰 완전히 새로 창작하세요.`
       : '';
 
     const response = await ai.models.generateContent({
       model: MODEL_NAME,
-      contents: `다음 주제로 유튜브 영상 대본을 작성해줘.
-      
-      주제: "${topic}"
-      참고(이전 대본 맥락): "${originalContext.substring(0, 500)}..."
-      ${historyPrompt}
-      
-      형식:
-      [오프닝] - 시청자의 주의를 끄는 멘트
-      [본론] - 핵심 내용 3가지
-      [클로징] - 요약 및 구독 유도
-      
-      한글로 자연스럽게 작성해줘.`,
-      config: {}
+      contents: `:: 핵심 미션 ::
+너는 유튜브 대본 작가야. 아래 주제(제목)에 딱 맞는 대본을 창작해야 해.
+
+:: 주제(제목) ::
+"${topic}"
+
+:: 중요 ::
+- 대본의 모든 내용은 위 주제("${topic}")를 직접적으로 다뤄야 함
+- 주제에서 벗어나면 안 됨
+- 제목을 보고 들어온 시청자가 "이거 아니네?" 하면 안 됨
+- 제목이 약속한 내용을 100% 전달할 것
+
+:: 참고 자료 (스타일만 참고) ::
+${originalContext.substring(0, 500)}...
+${historyPrompt}
+
+:: 대본 구조 ::
+[오프닝] - 주제("${topic}")를 언급하며 호기심 유발
+[본론] - "${topic}"에 대한 핵심 내용 3가지
+[클로징] - "${topic}" 요약 및 구독 유도
+
+:: 길이 ::
+8,000-10,000자
+
+한글로 자연스럽게, 주제에 완벽히 맞게 작성해줘.`,
+      config: {
+        temperature: 0.8,
+        topP: 0.95
+      }
     });
 
     return response.text || "대본을 생성하지 못했습니다.";
@@ -124,36 +140,57 @@ export const generateYadamScript = async (
 
     const response = await ai.models.generateContent({
       model: MODEL_NAME,
-      contents: `너는 조선시대 야담 전문 스토리텔러야. 
-      
-      주제: "${topic}"
-      
-      사용자가 입력한 대본 (참고용):
-      """
-      ${trimmedOriginal}
-      """
-      ${historyPrompt}
-      
-      ## 핵심 지침:
-      **위 주제("${topic}")에 딱 맞는 완전히 새로운 조선시대 야담 이야기를 창작해줘.**
-      
-      - 입력 대본의 스타일(문체, 후킹 방식, 구성)은 참고하되
-      - **내용은 주제에 맞는 완전히 새로운 이야기**를 만들어줘
-      - 주제 제목과 100% 일치하는 내용이어야 함
-      - 길이: ${targetLength}
-      
-      ## 야담 스타일 특징:
-      - 조선시대 배경의 생생한 일화
-      - "전하는 바에 의하면", "옛날 어느 때" 같은 구전 화법
-      - 짧고 흥미진진한 사건 전개
-      - 통쾌한 반전이나 교훈
-      
-      형식:
-      [도입] - 호기심을 자극하는 오프닝
-      [전개] - 구체적인 상황과 갈등 전개
-      [절정] - 통쾌한 반전
-      [마무리] - 여운과 교훈`,
-      config: {}
+      contents: `:: Role ::
+너는 조선시대 야담 전문 스토리텔러야.
+
+:: 핵심 미션 ::
+아래 주제(제목)에 **완벽하게 일치하는** 조선시대 야담 이야기를 창작해야 해.
+
+:: 주제(제목) ::
+"${topic}"
+
+:: 절대 규칙 ::
+1. 이야기의 모든 내용은 "${topic}"를 직접 다뤄야 함
+2. 주제에서 1%도 벗어나면 안 됨
+3. 제목 = 내용 (100% 일치 필수)
+4. 시청자가 "제목이랑 다르네?"라고 느끼면 실패
+5. 주제가 약속한 내용을 반드시 전달할 것
+
+:: 참고 자료 (스타일만 참고, 내용은 주제에 맞게 새로 창작) ::
+"""
+${trimmedOriginal}
+"""
+${historyPrompt}
+
+⚠️ 위 대본은 문체/구성/후킹 방식만 참고하고, 내용은 "${topic}"에 딱 맞는 완전히 새로운 조선시대 이야기를 창작하세요.
+
+:: 야담 스타일 특징 ::
+- 조선시대 배경의 생생한 실화 같은 일화
+- "전하는 바에 의하면", "옛날 어느 때", "한양 어느 골목에" 같은 구전 화법
+- 짧고 강렬한 문장, 흥미진진한 사건 전개
+- 통쾌한 반전이나 교훈
+- 등장인물의 생생한 대사와 행동
+
+:: 대본 구조 ::
+[도입] - "${topic}"를 언급하며 호기심 자극
+[전개] - "${topic}"의 핵심 사건 전개 (구체적 상황, 인물, 갈등)
+[절정] - "${topic}"의 클라이막스 (반전/충격)
+[마무리] - "${topic}"의 결말과 교훈
+
+:: 길이 ::
+${targetLength}
+
+:: 최종 체크리스트 ::
+✓ 제목("${topic}")과 내용이 100% 일치하는가?
+✓ 주제를 직접적으로 다루고 있는가?
+✓ 조선시대 야담 스타일인가?
+✓ 호기심과 몰입을 유도하는가?
+
+이제 창작 시작!`,
+      config: {
+        temperature: 0.85,
+        topP: 0.95
+      }
     });
 
     return response.text || "야담 대본을 생성하지 못했습니다.";
@@ -163,27 +200,49 @@ export const generateYadamScript = async (
   }
 };
 
-// 4. PD 페르소나 - 대본 분석
+// 4. PD 페르소나 - 대본 분석 (냉철하고 비판적)
 export const analyzeScriptAsPD = async (script: string, apiKey: string): Promise<ScriptAnalysis> => {
   try {
     const ai = getAI(apiKey);
     const response = await ai.models.generateContent({
       model: MODEL_NAME,
-      contents: `# Role Definition
-너는 지금부터 구독자 100만 명을 보유한 유튜브 채널의 '메인 PD'이자 '시나리오 작가'야. 
+      contents: `:: Role Definition ::
+너는 지금부터 구독자 100만 명을 보유한 유튜브 채널의 '메인 PD'이자 '시나리오 작가'야.
+냉철하고 비판적인 시각으로 대본의 치명적 약점을 찾아내는 것이 너의 역할이다.
+타협 없이, 직설적으로, 시청자 입장에서 평가해야 한다.
 
-# Task
-다음 유튜브 대본을 분석해서, 시청자 이탈이 발생할 수 있는 치명적인 약점을 찾아내고 수정안을 제안해.
+:: Task ::
+내가 입력한 유튜브 롱폼 대본을 분석해서, 시청자 이탈이 발생할 수 있는 치명적인 약점을 찾아내고 수정안을 제안해.
 
-## 대본 (핵심 부분):
+## 대본 원문:
 """
 ${script.substring(0, 5000)}
 """
 
-# Analysis Criteria
+:: Analysis Criteria ::
 1. [후킹 점수]: 초반 30초 안에 시청자의 호기심을 자극하는지 (10점 만점 평가)
+   - 3초 안에 시선을 잡는가?
+   - 왜 봐야 하는지 명확한가?
+   - 클릭 후 이탈하지 않고 계속 보게 만드는가?
+
 2. [논리적 허점]: 주장에 대한 근거가 부족하거나 비약이 심한 구간 지적
-3. [지루함 경보]: 문장이 너무 길거나 불필요한 서론이 길어지는 '이탈 위험 구간' 식별`,
+   - 설득력 없는 주장
+   - 인과관계 비약
+   - 맥락 없는 전개
+
+3. [지루함 경보]: 문장이 너무 길거나 불필요한 서론이 길어지는 '이탈 위험 구간' 식별
+   - 장황한 설명
+   - 중복되는 내용
+   - 템포가 느려지는 구간
+
+:: Output Format ::
+- 총평: 직설적이고 냉정한 한 줄 평 (변명 여지 없이)
+- 후킹 점수: 0-10점 + 구체적 이유
+- 논리적 허점: 문제 구간 원문 → 문제점 → 수정안
+- 지루함 경보: 이탈 위험 구간 → 왜 지루한지
+- 액션 플랜: 이 영상을 살리기 위해 당장 고쳐야 할 1가지 (우선순위 최상위)
+
+**중요**: 칭찬보다는 개선점에 집중하라. 100만 구독자 채널 기준에서 평가하라.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -446,7 +505,7 @@ ${scriptSummary}
   }
 };
 
-// 10. PD 분석 결과 기반 대본 개선
+// 10. PD 분석 결과 기반 대본 개선 (강화된 버전)
 export const improveScriptWithAnalysis = async (
   originalScript: string,
   analysis: ScriptAnalysis,
@@ -454,49 +513,107 @@ export const improveScriptWithAnalysis = async (
 ): Promise<string> => {
   try {
     const ai = getAI(apiKey);
-    const flawsSummary = analysis.logicalFlaws
-      .map((f, i) => `${i + 1}. [문제] ${f.issue}\n   [제안] ${f.suggestion}`)
-      .join('\n');
     
-    const boringSummary = analysis.boringParts
-      .map((b, i) => `${i + 1}. [이탈위험] ${b.reason}`)
-      .join('\n');
+    // 논리적 허점을 상세하게 정리
+    const flawsSummary = analysis.logicalFlaws.length > 0
+      ? analysis.logicalFlaws.map((f, i) => 
+          `[허점 ${i + 1}]\n` +
+          `원문: "${f.original}"\n` +
+          `문제점: ${f.issue}\n` +
+          `수정안: ${f.suggestion}\n`
+        ).join('\n')
+      : '발견되지 않음';
+    
+    // 지루함 경보 구간 정리
+    const boringSummary = analysis.boringParts.length > 0
+      ? analysis.boringParts.map((b, i) => 
+          `[이탈위험 ${i + 1}] "${b.original}"\n` +
+          `이유: ${b.reason}\n`
+        ).join('\n')
+      : '발견되지 않음';
 
     const response = await ai.models.generateContent({
       model: MODEL_NAME,
-      contents: `# Role
+      contents: `:: Role ::
 너는 100만 구독자 유튜브 채널의 메인 시나리오 작가야.
+PD의 냉정한 피드백을 100% 반영하여 대본을 완벽하게 개선해야 한다.
 
-# 원본 대본
+:: 원본 대본 ::
 """
 ${originalScript}
 """
 
-# PD 분석 결과
-## 후킹 점수: ${analysis.hookingScore}/10
-${analysis.hookingComment}
+:: PD 분석 결과 (반드시 반영) ::
 
-## 논리적 허점
-${flawsSummary || '없음'}
+📊 후킹 점수: ${analysis.hookingScore}/10
+💬 PD 코멘트: ${analysis.hookingComment}
 
-## 지루함 경보 구간
-${boringSummary || '없음'}
+⚠️ 논리적 허점 (${analysis.logicalFlaws.length}개):
+${flawsSummary}
 
-## 종합 의견
+😴 지루함 경보 구간 (${analysis.boringParts.length}개):
+${boringSummary}
+
+💬 PD 총평:
 ${analysis.overallComment}
 
-## 실행 계획
+🚨 최우선 액션 플랜:
 ${analysis.actionPlan}
 
-# Task
-위 PD 분석을 반영하여 대본을 개선해줘.
+:: Task - 대본 개선 ::
 
-## 개선 방향
-1. 후킹 강화: 초반 30초 임팩트 있게
-2. 논리 보완: 허점 보완
-3. 템포 조절: 지루한 구간 간결화
-4. 조선시대 야담 스타일 유지
-5. 길이 유지: 8,000-10,000자
+위 PD 분석을 **100% 반영**하여 대본을 완전히 재작성해줘.
+
+## 필수 개선 사항:
+
+1. **후킹 강화** (목표: ${Math.min(10, analysis.hookingScore + 3)}점 이상)
+   - 첫 3초: 충격적인 질문이나 사건으로 시작
+   - 초반 30초: 왜 봐야 하는지 명확히 제시
+   - 클릭 후 이탈 방지 장치 추가
+
+2. **논리적 허점 100% 보완**
+   - 위에 나열된 모든 허점을 PD 수정안대로 수정
+   - 인과관계 명확히, 비약 제거
+   - 근거와 설득력 강화
+
+3. **템포 조절 - 지루함 제거**
+   - 지루함 경보 구간을 간결하게 압축
+   - 불필요한 서론 삭제
+   - 짧고 강렬한 문장으로 변경
+
+4. **조선시대 야담 스타일 유지**
+   - 생생한 일화, 구전 화법
+   - 통쾌한 반전과 교훈
+
+5. **길이 유지**
+   - 8,000-10,000자 (원본과 유사한 길이)
+
+## 중요 지침:
+- PD가 지적한 문제를 **모두** 해결할 것
+- 단순 수정이 아닌 **완전히 재작성**
+- 개선 전보다 **명백히 나아진** 대본이어야 함
+
+개선된 대본만 출력해줘.`,
+      config: {
+        temperature: 0.8,
+        topP: 0.95,
+        maxOutputTokens: 8192
+      }
+    });
+
+    if (response.text) {
+      const improved = response.text.trim();
+      if (improved.length < 3000) {
+        throw new Error("개선된 대본이 너무 짧습니다. 다시 시도해주세요.");
+      }
+      return improved;
+    }
+    throw new Error("대본 개선 결과를 받을 수 없습니다.");
+  } catch (error) {
+    console.error("Script Improvement Error:", error);
+    throw new Error("대본 개선 중 오류가 발생했습니다.");
+  }
+};
 
 개선된 대본만 출력해.`,
       config: {
