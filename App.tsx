@@ -147,8 +147,11 @@ const App: React.FC = () => {
 
       // 대본 생성 완료 후 자동으로 제목, 썸네일, 등장인물 이미지 프롬프트 생성
       await generateAllMetadata(script);
-    } catch (e) {
-      setErrorMsg("대본 생성 실패: 잠시 후 다시 시도해주세요.");
+    } catch (e: any) {
+      const errorMsg = e?.message || "대본 생성 실패: 잠시 후 다시 시도해주세요.";
+      setErrorMsg(errorMsg);
+      console.error("대본 생성 에러:", e);
+      alert(`❌ 대본 생성 실패\n\n${errorMsg}\n\n💡 F12를 눌러 Console 탭에서 자세한 오류를 확인하세요.`);
     } finally {
       setLoading('IDLE');
     }
@@ -195,8 +198,11 @@ const App: React.FC = () => {
     try {
       const analysis = await analyzeScriptAsPD(session.generatedNewScript, session.apiKey);
       setSession(prev => ({ ...prev, analysis }));
-    } catch (e) {
-      setErrorMsg("분석 실패: 잠시 후 다시 시도해주세요.");
+    } catch (e: any) {
+      const errorMsg = e?.message || "분석 실패: 잠시 후 다시 시도해주세요.";
+      setErrorMsg(errorMsg);
+      console.error("PD 분석 에러:", e);
+      alert(`❌ 분석 실패\n\n${errorMsg}\n\n💡 F12를 눌러 Console 탭에서 자세한 오류를 확인하세요.`);
     } finally {
       setLoading('IDLE');
     }
@@ -397,8 +403,11 @@ const App: React.FC = () => {
         imagePrompts: prompts,
       }));
       alert(`${prompts.length}개의 이미지 프롬프트가 생성되었습니다!`);
-    } catch (e) {
-      setErrorMsg("이미지 프롬프트 생성 실패: 잠시 후 다시 시도해주세요.");
+    } catch (e: any) {
+      const errorMsg = e?.message || "이미지 프롬프트 생성 실패: 잠시 후 다시 시도해주세요.";
+      setErrorMsg(errorMsg);
+      console.error("이미지 프롬프트 생성 에러:", e);
+      alert(`❌ 이미지 프롬프트 생성 실패\n\n${errorMsg}\n\n💡 F12를 눌러 Console 탭에서 자세한 오류를 확인하세요.`);
     } finally {
       setLoading('IDLE');
     }

@@ -9,9 +9,11 @@ const getAI = (apiKey: string) => new GoogleGenAI({ apiKey });
 // 1. 주제 추천 함수
 export const suggestTopicsFromScript = async (script: string, apiKey: string): Promise<string[]> => {
   try {
+    console.log('API 키로 AI 인스턴스 생성 시도...');
     const ai = getAI(apiKey);
     const trimmedScript = script.length > 2000 ? script.substring(0, 2000) + '...' : script;
     
+    console.log('Gemini API 호출 시작...');
     const response = await ai.models.generateContent({
       model: MODEL_NAME,
       contents: `다음 유튜브 대본(또는 아이디어)을 분석해서, 이와 연관되거나 파생될 수 있는 흥미로운 유튜브 영상 주제 3가지를 추천해줘.
@@ -37,13 +39,16 @@ export const suggestTopicsFromScript = async (script: string, apiKey: string): P
     if (response.text) {
       const parsed = JSON.parse(response.text);
       if (Array.isArray(parsed)) {
+        console.log('주제 추천 성공:', parsed.length, '개');
         return parsed;
       }
     }
     return [];
-  } catch (error) {
-    console.error("Gemini Topic Error:", error);
-    throw new Error("주제 추천 중 오류가 발생했습니다.");
+  } catch (error: any) {
+    console.error("Gemini Topic Error 상세:", error);
+    console.error("에러 메시지:", error.message);
+    console.error("에러 스택:", error.stack);
+    throw new Error(`주제 추천 중 오류: ${error.message || '알 수 없는 오류'}`);
   }
 };
 
@@ -284,9 +289,10 @@ ${script.substring(0, 5000)}
       return parsed as ScriptAnalysis;
     }
     throw new Error("분석 결과를 파싱할 수 없습니다.");
-  } catch (error) {
+  } catch (error: any) {
     console.error("Gemini Analysis Error:", error);
-    throw new Error("대본 분석 중 오류가 발생했습니다.");
+    const errorMsg = error?.message || error?.toString() || "알 수 없는 오류";
+    throw new Error(`대본 분석 중 오류가 발생했습니다: ${errorMsg}\n\nAPI 키를 확인하거나 잠시 후 다시 시도해주세요.`);
   }
 };
 
