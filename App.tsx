@@ -120,6 +120,25 @@ const App: React.FC = () => {
 
       // 히스토리에 자동 추가
       saveToHistory(topic, script, false);
+
+      // 대본 생성 완료 후 자동으로 제목과 등장인물 생성
+      try {
+        // 제목 자동 생성
+        const title = await generateVideoTitle(script, session.apiKey);
+        setSession(prev => ({
+          ...prev,
+          videoTitle: title,
+        }));
+
+        // 등장인물 자동 생성
+        const prompts = await generateImagePrompts(script, session.apiKey);
+        setSession(prev => ({
+          ...prev,
+          imagePrompts: prompts,
+        }));
+      } catch (autoGenError) {
+        console.log('자동 생성 중 오류:', autoGenError);
+      }
     } catch (e) {
       setErrorMsg("대본 생성 실패: 잠시 후 다시 시도해주세요.");
     } finally {
@@ -828,7 +847,22 @@ const App: React.FC = () => {
                     📋 복사
                   </button>
                 </div>
-                <p className="text-2xl font-bold text-gray-800">{session.videoTitle}</p>
+                <div className="space-y-3">
+                  {session.videoTitle.split('\n').filter(line => line.trim()).map((title, idx) => (
+                    <div key={idx} className="flex items-center justify-between bg-white p-4 rounded-lg border border-indigo-100 hover:border-indigo-300 transition-colors">
+                      <p className="text-lg font-semibold text-gray-800 flex-1">{title.replace(/^\d+\.\s*/, '')}</p>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(title.replace(/^\d+\.\s*/, ''));
+                          alert('제목이 복사되었습니다!');
+                        }}
+                        className="ml-3 text-xs bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1.5 rounded transition-colors"
+                      >
+                        📋 복사
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
             </section>
           )}
