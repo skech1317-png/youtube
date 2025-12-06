@@ -468,7 +468,7 @@ ${scriptSummary}
   }
 };
 
-// 10. PD 분석 결과 기반 대본 개선
+// 10. PD 분석 결과 기반 대본 개선 (강화된 버전)
 export const improveScriptWithAnalysis = async (
   originalScript: string,
   analysis: ScriptAnalysis,
@@ -476,49 +476,107 @@ export const improveScriptWithAnalysis = async (
 ): Promise<string> => {
   try {
     const ai = getAI(apiKey);
-    const flawsSummary = analysis.logicalFlaws
-      .map((f, i) => `${i + 1}. [문제] ${f.issue}\n   [제안] ${f.suggestion}`)
-      .join('\n');
     
-    const boringSummary = analysis.boringParts
-      .map((b, i) => `${i + 1}. [이탈위험] ${b.reason}`)
-      .join('\n');
+    // 논리적 허점을 상세하게 정리
+    const flawsSummary = analysis.logicalFlaws.length > 0
+      ? analysis.logicalFlaws.map((f, i) => 
+          `[허점 ${i + 1}]\n` +
+          `원문: "${f.original}"\n` +
+          `문제점: ${f.issue}\n` +
+          `수정안: ${f.suggestion}\n`
+        ).join('\n')
+      : '발견되지 않음';
+    
+    // 지루함 경보 구간 정리
+    const boringSummary = analysis.boringParts.length > 0
+      ? analysis.boringParts.map((b, i) => 
+          `[이탈위험 ${i + 1}] "${b.original}"\n` +
+          `이유: ${b.reason}\n`
+        ).join('\n')
+      : '발견되지 않음';
 
     const response = await ai.models.generateContent({
       model: MODEL_NAME,
-      contents: `# Role
+      contents: `:: Role ::
 너는 100만 구독자 유튜브 채널의 메인 시나리오 작가야.
+PD의 냉정한 피드백을 100% 반영하여 대본을 완벽하게 개선해야 한다.
 
-# 원본 대본
+:: 원본 대본 ::
 """
 ${originalScript}
 """
 
-# PD 분석 결과
-## 후킹 점수: ${analysis.hookingScore}/10
-${analysis.hookingComment}
+:: PD 분석 결과 (반드시 반영) ::
 
-## 논리적 허점
-${flawsSummary || '없음'}
+📊 후킹 점수: ${analysis.hookingScore}/10
+💬 PD 코멘트: ${analysis.hookingComment}
 
-## 지루함 경보 구간
-${boringSummary || '없음'}
+⚠️ 논리적 허점 (${analysis.logicalFlaws.length}개):
+${flawsSummary}
 
-## 종합 의견
+😴 지루함 경보 구간 (${analysis.boringParts.length}개):
+${boringSummary}
+
+💬 PD 총평:
 ${analysis.overallComment}
 
-## 실행 계획
+🚨 최우선 액션 플랜:
 ${analysis.actionPlan}
 
-# Task
-위 PD 분석을 반영하여 대본을 개선해줘.
+:: Task - 대본 개선 ::
 
-## 개선 방향
-1. 후킹 강화: 초반 30초 임팩트 있게
-2. 논리 보완: 허점 보완
-3. 템포 조절: 지루한 구간 간결화
-4. 조선시대 야담 스타일 유지
-5. 길이 유지: 8,000-10,000자
+위 PD 분석을 **100% 반영**하여 대본을 완전히 재작성해줘.
+
+## 필수 개선 사항:
+
+1. **후킹 강화** (목표: ${Math.min(10, analysis.hookingScore + 3)}점 이상)
+   - 첫 3초: 충격적인 질문이나 사건으로 시작
+   - 초반 30초: 왜 봐야 하는지 명확히 제시
+   - 클릭 후 이탈 방지 장치 추가
+
+2. **논리적 허점 100% 보완**
+   - 위에 나열된 모든 허점을 PD 수정안대로 수정
+   - 인과관계 명확히, 비약 제거
+   - 근거와 설득력 강화
+
+3. **템포 조절 - 지루함 제거**
+   - 지루함 경보 구간을 간결하게 압축
+   - 불필요한 서론 삭제
+   - 짧고 강렬한 문장으로 변경
+
+4. **조선시대 야담 스타일 유지**
+   - 생생한 일화, 구전 화법
+   - 통쾌한 반전과 교훈
+
+5. **길이 유지**
+   - 8,000-10,000자 (원본과 유사한 길이)
+
+## 중요 지침:
+- PD가 지적한 문제를 **모두** 해결할 것
+- 단순 수정이 아닌 **완전히 재작성**
+- 개선 전보다 **명백히 나아진** 대본이어야 함
+
+개선된 대본만 출력해줘.`,
+      config: {
+        temperature: 0.8,
+        topP: 0.95,
+        maxOutputTokens: 8192
+      }
+    });
+
+    if (response.text) {
+      const improved = response.text.trim();
+      if (improved.length < 3000) {
+        throw new Error("개선된 대본이 너무 짧습니다. 다시 시도해주세요.");
+      }
+      return improved;
+    }
+    throw new Error("대본 개선 결과를 받을 수 없습니다.");
+  } catch (error) {
+    console.error("Script Improvement Error:", error);
+    throw new Error("대본 개선 중 오류가 발생했습니다.");
+  }
+};
 
 개선된 대본만 출력해.`,
       config: {
