@@ -360,7 +360,100 @@ JSON으로 응답:
   }
 };
 
-// 7. 등장인물 이미지 프롬프트 생성
+// 7-1. 챕터별 장면 이미지 프롬프트 생성 (신규)
+export const generateChapterImagePrompts = async (script: string, apiKey: string): Promise<Array<{
+  chapterNumber: number;
+  chapterTitle: string;
+  scenes: Array<{
+    sceneNumber: number;
+    description: string;
+    imagePrompt: string;
+    timestamp: string;
+  }>;
+}>> => {
+  try {
+    const ai = getAI(apiKey);
+    
+    const response = await ai.models.generateContent({
+      model: MODEL_NAME,
+      contents: `:: Role ::
+너는 영상 제작 전문가이자 AI 이미지 프롬프트 전문가야.
+
+:: Task ::
+아래 조선시대 야담 대본을 분석하여, 챕터별로 나누고 각 챕터의 핵심 장면 이미지 프롬프트를 생성해줘.
+
+## 대본:
+"""
+${script}
+"""
+
+:: 작업 지침 ::
+
+1. **대본을 4-6개 챕터로 구분**
+   - [도입], [전개], [절정], [마무리] 등 스토리 흐름에 따라
+   - 각 챕터에 명확한 제목 부여
+
+2. **각 챕터당 2-4개의 핵심 장면 선택**
+   - 총 이미지 개수: 12-20개 정도
+   - 시각적으로 강렬한 순간
+   - 스토리 이해에 필수적인 장면
+
+3. **각 장면마다:**
+   - 한글 설명: 무슨 장면인지 명확히
+   - AI 이미지 프롬프트 (영문): Midjourney/DALL-E 사용 가능
+   - 타임스탬프: 예상 시간 (예: "0:30", "2:15")
+
+4. **프롬프트 작성 원칙:**
+   - 조선시대 배경, 복식, 건축 구체적 묘사
+   - 인물의 표정, 감정, 동작
+   - 조명, 구도, 분위기
+   - "Joseon Dynasty", "traditional Korean", "hanbok" 등 키워드 포함
+
+:: 출력 형식 ::
+JSON 배열로 챕터별 구조화`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              chapterNumber: { type: Type.NUMBER },
+              chapterTitle: { type: Type.STRING },
+              scenes: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    sceneNumber: { type: Type.NUMBER },
+                    description: { type: Type.STRING },
+                    imagePrompt: { type: Type.STRING },
+                    timestamp: { type: Type.STRING }
+                  },
+                  required: ["sceneNumber", "description", "imagePrompt", "timestamp"]
+                }
+              }
+            },
+            required: ["chapterNumber", "chapterTitle", "scenes"]
+          }
+        }
+      }
+    });
+
+    if (response.text) {
+      const parsed = JSON.parse(response.text);
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+    }
+    return [];
+  } catch (error) {
+    console.error("Gemini Chapter Image Prompt Error:", error);
+    throw new Error("챕터별 이미지 프롬프트 생성 중 오류가 발생했습니다.");
+  }
+};
+
+// 7-2. 등장인물 이미지 프롬프트 생성 (기존)
 export const generateImagePrompts = async (script: string, apiKey: string): Promise<Array<{
   sentence: string;
   imagePrompt: string;

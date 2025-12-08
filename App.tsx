@@ -7,6 +7,7 @@ import {
   analyzeScriptAsPD,
   generateShortsScript,
   generateImagePrompts,
+  generateChapterImagePrompts,
   generateVideoTitle,
   generateThumbnails,
   improveScriptWithAnalysis
@@ -382,6 +383,7 @@ const App: React.FC = () => {
   };
 
   // 이미지 프롬프트 생성
+  // 등장인물 이미지 프롬프트 생성
   const handleGenerateImagePrompts = async () => {
     if (!session.generatedNewScript) {
       setErrorMsg("먼저 대본을 생성해주세요.");
@@ -402,11 +404,50 @@ const App: React.FC = () => {
         ...prev,
         imagePrompts: prompts,
       }));
-      alert(`${prompts.length}개의 이미지 프롬프트가 생성되었습니다!`);
+      alert(`${prompts.length}명의 등장인물 이미지 프롬프트가 생성되었습니다!`);
     } catch (e: any) {
-      const errorMsg = e?.message || "이미지 프롬프트 생성 실패: 잠시 후 다시 시도해주세요.";
+      const errorMsg = e?.message || "등장인물 이미지 프롬프트 생성 실패: 잠시 후 다시 시도해주세요.";
       setErrorMsg(errorMsg);
-      console.error("이미지 프롬프트 생성 에러:", e);
+      console.error("등장인물 이미지 프롬프트 생성 에러:", e);
+    } finally {
+      setLoading('IDLE');
+    }
+  };
+
+  // 챕터별 장면 이미지 프롬프트 생성 (신규)
+  const handleGenerateChapterImagePrompts = async () => {
+    if (!session.generatedNewScript) {
+      setErrorMsg("먼저 대본을 생성해주세요.");
+      return;
+    }
+    if (!session.apiKey || !session.apiKey.trim()) {
+      alert("⚠️ API 키를 먼저 입력해주세요!");
+      setErrorMsg("API 키를 먼저 입력해주세요.");
+      return;
+    }
+
+    setLoading('IMAGE_PROMPTS');
+    setErrorMsg(null);
+
+    try {
+      const chapterPrompts = await generateChapterImagePrompts(session.generatedNewScript, session.apiKey);
+      const totalScenes = chapterPrompts.reduce((sum, ch) => sum + ch.scenes.length, 0);
+      
+      setSession(prev => ({
+        ...prev,
+        chapterImagePrompts: chapterPrompts,
+      }));
+      
+      alert(
+        `✅ 챕터별 장면 이미지 생성 완료!\n\n` +
+        `📚 챕터: ${chapterPrompts.length}개\n` +
+        `🎬 총 장면: ${totalScenes}개\n\n` +
+        `각 챕터를 확장하여 이미지 프롬프트를 확인하세요.`
+      );
+    } catch (e: any) {
+      const errorMsg = e?.message || "챕터별 이미지 프롬프트 생성 실패";
+      setErrorMsg(errorMsg);
+      console.error("챕터별 이미지 프롬프트 생성 에러:", e);
       alert(`❌ 이미지 프롬프트 생성 실패\n\n${errorMsg}\n\n💡 F12를 눌러 Console 탭에서 자세한 오류를 확인하세요.`);
     } finally {
       setLoading('IDLE');
@@ -844,6 +885,14 @@ const App: React.FC = () => {
                 <span>등장인물</span>
               </button>
               <button
+                onClick={handleGenerateChapterImagePrompts}
+                disabled={loading === 'IMAGE_PROMPTS' || !session.generatedNewScript}
+                className="flex items-center gap-2 bg-indigo-500 hover:bg-indigo-600 text-white px-5 py-3 rounded-xl transition-all shadow-md hover:shadow-lg font-bold text-sm disabled:bg-gray-300 disabled:cursor-not-allowed transform hover:scale-105"
+              >
+                <span className="text-lg">🎞️</span>
+                <span>장면</span>
+              </button>
+              <button
                 onClick={handleAnalyze}
                 disabled={loading === 'ANALYZING' || !session.generatedNewScript}
                 className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-5 py-3 rounded-xl transition-all shadow-md hover:shadow-lg font-bold text-sm disabled:bg-gray-300 disabled:cursor-not-allowed transform hover:scale-105"
@@ -1036,6 +1085,89 @@ const App: React.FC = () => {
                 <p className="text-xs text-yellow-800">
                   💡 <strong>사용 방법:</strong> 각 프롬프트를 AI 이미지 생성 툴(Midjourney, DALL-E 등)에 복사하여 썸네일을 만드세요.
                 </p>
+              </div>
+            </section>
+          )}
+
+          {/* 챕터별 장면 이미지 프롬프트 (신규) */}
+          {session.chapterImagePrompts && session.chapterImagePrompts.length > 0 && (
+            <section className="border-t border-gray-100 pt-6 animate-fade-in">
+              <div className="flex justify-between items-center mb-4">
+                <label className="block text-lg font-bold text-gray-800">
+                  🎞️ 챕터별 장면 이미지 프롬프트 ({session.chapterImagePrompts.length}개 챕터)
+                </label>
+                <button
+                  onClick={() => setSession(prev => ({ ...prev, chapterImagePrompts: [] }))}
+                  className="text-xs bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded"
+                >
+                  닫기
+                </button>
+              </div>
+              
+              <div className="space-y-6">
+                {session.chapterImagePrompts.map((chapter) => (
+                  <details key={chapter.chapterNumber} className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl border-2 border-indigo-300 overflow-hidden" open={chapter.chapterNumber === 1}>
+                    <summary className="cursor-pointer p-4 bg-indigo-100 hover:bg-indigo-200 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <span className="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-bold">
+                          {chapter.chapterNumber}
+                        </span>
+                        <div>
+                          <h3 className="font-bold text-lg text-indigo-900">{chapter.chapterTitle}</h3>
+                          <p className="text-sm text-indigo-700">{chapter.scenes.length}개 장면</p>
+                        </div>
+                      </div>
+                    </summary>
+                    
+                    <div className="p-4 space-y-4">
+                      {chapter.scenes.map((scene) => (
+                        <div key={scene.sceneNumber} className="bg-white p-4 rounded-lg border-2 border-indigo-200 shadow-sm">
+                          <div className="flex items-start gap-3 mb-3">
+                            <span className="flex-shrink-0 w-8 h-8 bg-purple-500 text-white rounded-full flex items-center justify-center font-bold text-sm">
+                              {scene.sceneNumber}
+                            </span>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded text-xs font-bold">
+                                  {scene.timestamp}
+                                </span>
+                                <h4 className="font-bold text-gray-800">{scene.description}</h4>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="bg-black text-green-400 p-3 rounded font-mono text-xs overflow-x-auto">
+                            <div className="flex justify-between items-center mb-2">
+                              <span className="text-gray-400">AI Image Prompt:</span>
+                              <button
+                                onClick={() => {
+                                  navigator.clipboard.writeText(scene.imagePrompt);
+                                  alert(`장면 ${scene.sceneNumber} 프롬프트가 복사되었습니다!`);
+                                }}
+                                className="text-xs bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded"
+                              >
+                                📋 복사
+                              </button>
+                            </div>
+                            {scene.imagePrompt}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                ))}
+              </div>
+              
+              <div className="mt-4 p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
+                <p className="text-sm text-indigo-900 mb-2">
+                  <strong>💡 사용 방법:</strong>
+                </p>
+                <ul className="text-xs text-indigo-800 space-y-1 list-disc list-inside">
+                  <li>각 챕터를 클릭하여 확장/축소</li>
+                  <li>장면별 타임스탬프 확인</li>
+                  <li>프롬프트 복사 → Midjourney/DALL-E에 입력</li>
+                  <li>스토리 순서대로 이미지 생성 권장</li>
+                </ul>
               </div>
             </section>
           )}
