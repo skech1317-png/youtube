@@ -792,76 +792,76 @@ const App: React.FC = () => {
             {errorMsg && <p className="text-red-600 text-sm mt-3 bg-red-50 p-3 rounded-lg border border-red-200">{errorMsg}</p>}
           </section>
 
-          {/* 고정 버튼 바 - 항상 표시 */}
-          <section className="bg-white p-4 rounded-xl border-2 border-gray-300 shadow-md sticky top-4 z-10">
-            <div className="flex flex-wrap gap-2 justify-center">
+          {/* 고정 탭바 - 항상 표시 */}
+          <section className="bg-gradient-to-r from-gray-50 to-white p-5 rounded-2xl border-2 border-gray-300 shadow-xl sticky top-4 z-20">
+            <div className="flex flex-wrap gap-3 justify-center items-center">
               <button
                 onClick={handleCopy}
                 disabled={!session.generatedNewScript}
-                className="text-xs bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-5 py-3 rounded-xl transition-all shadow-md hover:shadow-lg font-bold text-sm disabled:bg-gray-300 disabled:cursor-not-allowed transform hover:scale-105"
               >
-                📋 복사
+                <span className="text-lg">📋</span>
+                <span>복사</span>
               </button>
               <button
                 onClick={handleDownload}
                 disabled={!session.generatedNewScript}
-                className="text-xs bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-5 py-3 rounded-xl transition-all shadow-md hover:shadow-lg font-bold text-sm disabled:bg-gray-300 disabled:cursor-not-allowed transform hover:scale-105"
               >
-                💾 다운로드
+                <span className="text-lg">💾</span>
+                <span>복사</span>
               </button>
               <button
                 onClick={toggleEditMode}
                 disabled={!session.generatedNewScript}
-                className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 bg-purple-500 hover:bg-purple-600 text-white px-5 py-3 rounded-xl transition-all shadow-md hover:shadow-lg font-bold text-sm disabled:bg-gray-300 disabled:cursor-not-allowed transform hover:scale-105"
               >
-                {session.isEditMode ? '📝 수정 중' : '✏️ 편집'}
-              </button>
-              {session.isEditMode && (
-                <button
-                  onClick={saveEditedScript}
-                  className="text-xs bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm font-medium"
-                >
-                  ✅ 저장
-                </button>
-              )}
-              <button
-                onClick={handleGenerateImagePrompts}
-                disabled={loading === 'IMAGE_PROMPTS' || !session.generatedNewScript}
-                className="text-xs bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
-              >
-                {loading === 'IMAGE_PROMPTS' ? '⏳ 분석중' : '👥 등장인물'}
+                <span className="text-lg">{session.isEditMode ? '📝' : '✏️'}</span>
+                <span>다운로드</span>
               </button>
               <button
                 onClick={handleGenerateTitle}
                 disabled={loading === 'TITLE' || !session.generatedNewScript}
-                className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-5 py-3 rounded-xl transition-all shadow-md hover:shadow-lg font-bold text-sm disabled:bg-gray-300 disabled:cursor-not-allowed transform hover:scale-105"
               >
-                {loading === 'TITLE' ? '⏳ 생성중' : '📝 제목'}
+                <span className="text-lg">📝</span>
+                <span>제목</span>
               </button>
               <button
                 onClick={handleGenerateThumbnails}
                 disabled={loading === 'THUMBNAILS' || !session.generatedNewScript}
-                className="text-xs bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 bg-yellow-500 hover:bg-yellow-600 text-white px-5 py-3 rounded-xl transition-all shadow-md hover:shadow-lg font-bold text-sm disabled:bg-gray-300 disabled:cursor-not-allowed transform hover:scale-105"
               >
-                {loading === 'THUMBNAILS' ? '⏳ 생성중' : '🖼️ 썸네일'}
+                <span className="text-lg">🖼️</span>
+                <span>썸네일</span>
+              </button>
+              <button
+                onClick={handleGenerateImagePrompts}
+                disabled={loading === 'IMAGE_PROMPTS' || !session.generatedNewScript}
+                className="flex items-center gap-2 bg-pink-500 hover:bg-pink-600 text-white px-5 py-3 rounded-xl transition-all shadow-md hover:shadow-lg font-bold text-sm disabled:bg-gray-300 disabled:cursor-not-allowed transform hover:scale-105"
+              >
+                <span className="text-lg">👥</span>
+                <span>등장인물</span>
               </button>
               <button
                 onClick={handleAnalyze}
                 disabled={loading === 'ANALYZING' || !session.generatedNewScript}
-                className="text-xs bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-5 py-3 rounded-xl transition-all shadow-md hover:shadow-lg font-bold text-sm disabled:bg-gray-300 disabled:cursor-not-allowed transform hover:scale-105"
               >
-                {loading === 'ANALYZING' ? '🔍 분석중' : '🎬 PD분석'}
+                <span className="text-lg">🎬</span>
+                <span>PD분석</span>
               </button>
               <button
                 onClick={handleGeneratePlan}
                 disabled={loading === 'PLANNING' || !session.generatedNewScript}
-                className="text-xs bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 bg-teal-500 hover:bg-teal-600 text-white px-5 py-3 rounded-xl transition-all shadow-md hover:shadow-lg font-bold text-sm disabled:bg-gray-300 disabled:cursor-not-allowed transform hover:scale-105"
               >
-                {loading === 'PLANNING' ? '⏳ 기획중' : '📋 기획서'}
+                <span className="text-lg">📋</span>
+                <span>숏츠</span>
               </button>
             </div>
             {!session.generatedNewScript && (
-              <p className="text-xs text-gray-500 text-center mt-2">💡 대본을 생성하면 버튼들이 활성화됩니다</p>
+              <p className="text-sm text-gray-600 text-center mt-3 font-medium">💡 대본을 생성하면 모든 기능이 활성화됩니다</p>
             )}
           </section>
 
