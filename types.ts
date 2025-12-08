@@ -57,24 +57,12 @@ export interface ChannelPlan {
   createdAt: number;
 }
 
-// 문장별 이미지 프롬프트 (등장인물용)
+// 등장인물 이미지 프롬프트
 export interface ImagePrompt {
   sentence: string; // 원문 문장
   imagePrompt: string; // AI 이미지 생성용 프롬프트 (영문)
   koreanDescription: string; // 한글 설명
   sceneNumber: number; // 장면 번호
-}
-
-// 챕터별 장면 이미지 프롬프트
-export interface ChapterImagePrompt {
-  chapterNumber: number; // 챕터 번호
-  chapterTitle: string; // 챕터 제목
-  scenes: Array<{
-    sceneNumber: number; // 챕터 내 장면 번호
-    description: string; // 장면 설명 (한글)
-    imagePrompt: string; // AI 이미지 프롬프트 (영문)
-    timestamp: string; // 예상 타임스탬프 (예: "0:30")
-  }>;
 }
 
 // 썸네일 프롬프트
@@ -99,7 +87,6 @@ export interface ScriptSession {
   shortsScripts: ShortsScript[]; // 숏츠 대본들
   channelPlans: ChannelPlan[]; // 채널 기획서들
   imagePrompts: ImagePrompt[]; // 등장인물 이미지 프롬프트
-  chapterImagePrompts: ChapterImagePrompt[]; // 챕터별 장면 이미지 프롬프트
   videoTitle: string | null; // 생성된 제목
   thumbnails: ThumbnailPrompt[]; // 썸네일 프롬프트들
 }
@@ -117,7 +104,6 @@ export const INITIAL_SESSION: ScriptSession = {
   shortsScripts: [],
   channelPlans: [],
   imagePrompts: [],
-  chapterImagePrompts: [],
   videoTitle: null,
   thumbnails: [],
 };
