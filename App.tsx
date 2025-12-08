@@ -40,6 +40,12 @@ const App: React.FC = () => {
   const [scriptType, setScriptType] = useState<'NORMAL' | 'YADAM'>('YADAM'); // 기본값을 야담으로
   const [editedScriptForSRT, setEditedScriptForSRT] = useState<string>(''); // SRT 생성용 수정 대본
   const [showSRTEditor, setShowSRTEditor] = useState<boolean>(false);
+  
+  // SRT 설정
+  const [srtCharsPerSecond, setSrtCharsPerSecond] = useState<number>(5); // 초당 글자 수
+  const [srtMinDuration, setSrtMinDuration] = useState<number>(2); // 최소 지속 시간
+  const [srtMaxDuration, setSrtMaxDuration] = useState<number>(8); // 최대 지속 시간
+  const [srtGap, setSrtGap] = useState<number>(0.3); // 자막 간 간격
 
   // Persistence: Load
   useEffect(() => {
@@ -425,10 +431,10 @@ const App: React.FC = () => {
 
     try {
       const srtContent = generateSRT(editedScriptForSRT, {
-        charsPerSecond: 5, // 초당 5자 (읽기 속도)
-        minDuration: 2, // 최소 2초
-        maxDuration: 8, // 최대 8초
-        gapBetweenSubtitles: 0.3 // 자막 간 0.3초 간격
+        charsPerSecond: srtCharsPerSecond,
+        minDuration: srtMinDuration,
+        maxDuration: srtMaxDuration,
+        gapBetweenSubtitles: srtGap
       });
 
       // 파일명 생성 (주제 또는 기본값)
@@ -1697,6 +1703,138 @@ ${plan.uploadSchedule}
                   placeholder="여기에 대본을 수정하세요..."
                 />
 
+                {/* SRT 설정 패널 */}
+                <div className="bg-white border-2 border-amber-300 rounded-xl p-5 mb-4">
+                  <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <span>⚙️</span>
+                    <span>자막 타이밍 설정</span>
+                    <span className="text-xs font-normal text-gray-500">(타입캐스트 음성 들으며 조정하세요)</span>
+                  </h4>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* 읽기 속도 */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        🗣️ 읽기 속도 (초당 글자 수): <span className="text-amber-600">{srtCharsPerSecond}자/초</span>
+                      </label>
+                      <input
+                        type="range"
+                        min="3"
+                        max="8"
+                        step="0.5"
+                        value={srtCharsPerSecond}
+                        onChange={(e) => setSrtCharsPerSecond(parseFloat(e.target.value))}
+                        className="w-full h-2 bg-amber-200 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                      />
+                      <div className="flex justify-between text-xs text-gray-500 mt-1">
+                        <span>느림 (3)</span>
+                        <span>보통 (5)</span>
+                        <span>빠름 (8)</span>
+                      </div>
+                    </div>
+
+                    {/* 최소 지속 시간 */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        ⏱️ 최소 지속 시간: <span className="text-amber-600">{srtMinDuration}초</span>
+                      </label>
+                      <input
+                        type="range"
+                        min="1"
+                        max="5"
+                        step="0.5"
+                        value={srtMinDuration}
+                        onChange={(e) => setSrtMinDuration(parseFloat(e.target.value))}
+                        className="w-full h-2 bg-amber-200 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                      />
+                      <div className="flex justify-between text-xs text-gray-500 mt-1">
+                        <span>1초</span>
+                        <span>3초</span>
+                        <span>5초</span>
+                      </div>
+                    </div>
+
+                    {/* 최대 지속 시간 */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        ⏱️ 최대 지속 시간: <span className="text-amber-600">{srtMaxDuration}초</span>
+                      </label>
+                      <input
+                        type="range"
+                        min="5"
+                        max="12"
+                        step="0.5"
+                        value={srtMaxDuration}
+                        onChange={(e) => setSrtMaxDuration(parseFloat(e.target.value))}
+                        className="w-full h-2 bg-amber-200 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                      />
+                      <div className="flex justify-between text-xs text-gray-500 mt-1">
+                        <span>5초</span>
+                        <span>8초</span>
+                        <span>12초</span>
+                      </div>
+                    </div>
+
+                    {/* 자막 간 간격 */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        ↔️ 자막 간 간격: <span className="text-amber-600">{srtGap}초</span>
+                      </label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.1"
+                        value={srtGap}
+                        onChange={(e) => setSrtGap(parseFloat(e.target.value))}
+                        className="w-full h-2 bg-amber-200 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                      />
+                      <div className="flex justify-between text-xs text-gray-500 mt-1">
+                        <span>없음 (0)</span>
+                        <span>보통 (0.3)</span>
+                        <span>길게 (1)</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 프리셋 버튼 */}
+                  <div className="mt-4 flex gap-2">
+                    <button
+                      onClick={() => {
+                        setSrtCharsPerSecond(3.5);
+                        setSrtMinDuration(2.5);
+                        setSrtMaxDuration(10);
+                        setSrtGap(0.5);
+                      }}
+                      className="px-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg text-sm font-semibold transition-colors"
+                    >
+                      🐢 느린 낭독
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSrtCharsPerSecond(5);
+                        setSrtMinDuration(2);
+                        setSrtMaxDuration(8);
+                        setSrtGap(0.3);
+                      }}
+                      className="px-4 py-2 bg-green-100 hover:bg-green-200 text-green-700 rounded-lg text-sm font-semibold transition-colors"
+                    >
+                      🎯 표준 (권장)
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSrtCharsPerSecond(7);
+                        setSrtMinDuration(1.5);
+                        setSrtMaxDuration(6);
+                        setSrtGap(0.2);
+                      }}
+                      className="px-4 py-2 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-lg text-sm font-semibold transition-colors"
+                    >
+                      🚀 빠른 낭독
+                    </button>
+                  </div>
+                </div>
+
                 <div className="flex gap-3 mb-4">
                   <button
                     onClick={handleGenerateSRT}
@@ -1714,15 +1852,25 @@ ${plan.uploadSchedule}
                 </div>
 
                 <div className="bg-amber-100 border-2 border-amber-300 rounded-lg p-4">
-                  <p className="text-sm font-bold text-amber-800 mb-2">💡 사용 방법:</p>
-                  <ul className="text-xs text-amber-700 space-y-1 list-disc list-inside">
-                    <li>위 텍스트 영역에서 대본을 자유롭게 수정하세요</li>
-                    <li>문장 부호(. ! ?)로 자막이 자동 분리됩니다</li>
-                    <li>너무 긴 문장은 쉼표(,)로 추가 분리됩니다</li>
-                    <li>읽기 속도: 초당 약 5글자 (한국어 평균)</li>
-                    <li>자막 지속 시간: 최소 2초 ~ 최대 8초</li>
-                    <li>자막 간 간격: 0.3초</li>
+                  <p className="text-sm font-bold text-amber-800 mb-2">💡 타입캐스트 연동 가이드:</p>
+                  <ul className="text-xs text-amber-700 space-y-1.5 list-decimal list-inside">
+                    <li><strong>타입캐스트에서 TTS 생성</strong> (음성 파일 먼저 만들기)</li>
+                    <li><strong>음성을 들으며 위 설정 조정:</strong>
+                      <ul className="ml-5 mt-1 space-y-0.5 list-disc">
+                        <li>낭독이 느리면 → 읽기 속도 낮추기 (3~4자/초)</li>
+                        <li>낭독이 빠르면 → 읽기 속도 높이기 (6~7자/초)</li>
+                        <li>문장이 길면 → 최대 지속 시간 늘리기</li>
+                      </ul>
+                    </li>
+                    <li><strong>프리셋 활용:</strong> 🐢느린 / 🎯표준 / 🚀빠른 버튼으로 빠르게 설정</li>
+                    <li><strong>SRT 다운로드 후 YouTube에 업로드</strong></li>
+                    <li>타이밍이 안 맞으면 → 설정 재조정 후 다시 생성</li>
                   </ul>
+                  <div className="mt-3 p-2 bg-yellow-50 border border-amber-400 rounded">
+                    <p className="text-xs text-amber-900">
+                      <strong>✨ 팁:</strong> 타입캐스트 음성 속도가 "보통"이면 🎯표준 프리셋 사용, "느리게"면 🐢느린 낭독 사용!
+                    </p>
+                  </div>
                 </div>
               </div>
             </section>
