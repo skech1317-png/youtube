@@ -360,7 +360,7 @@ JSON으로 응답:
   }
 };
 
-// 7-1. 챕터별 장면 이미지 프롬프트 생성 (신규)
+// 7-1. 챕터별 장면 이미지 프롬프트 생성 (최적화)
 export const generateChapterImagePrompts = async (script: string, apiKey: string): Promise<Array<{
   chapterNumber: number;
   chapterTitle: string;
@@ -374,43 +374,95 @@ export const generateChapterImagePrompts = async (script: string, apiKey: string
   try {
     const ai = getAI(apiKey);
     
+    // 대본 길이에 따라 챕터와 장면 수 동적 조정
+    const scriptLength = script.length;
+    let chapterCount: number;
+    let scenesPerChapter: string;
+    let totalScenes: number;
+    
+    if (scriptLength < 3000) {
+      // 짧은 대본: 3챕터 x 3-4장면 = 9-12개
+      chapterCount = 3;
+      scenesPerChapter = "3-4개";
+      totalScenes = 12;
+    } else if (scriptLength < 6000) {
+      // 중간 대본: 4챕터 x 3-4장면 = 12-16개
+      chapterCount = 4;
+      scenesPerChapter = "3-4개";
+      totalScenes = 15;
+    } else if (scriptLength < 10000) {
+      // 긴 대본: 5챕터 x 3개 = 15개 (최대 효율)
+      chapterCount = 5;
+      scenesPerChapter = "3개";
+      totalScenes = 15;
+    } else {
+      // 아주 긴 대본: 5챕터 x 3개 = 15개 (API 제한)
+      chapterCount = 5;
+      scenesPerChapter = "3개";
+      totalScenes = 15;
+    }
+    
     const response = await ai.models.generateContent({
       model: MODEL_NAME,
       contents: `:: Role ::
 너는 영상 제작 전문가이자 AI 이미지 프롬프트 전문가야.
 
 :: Task ::
-아래 조선시대 야담 대본을 분석하여, 챕터별로 나누고 각 챕터의 핵심 장면 이미지 프롬프트를 생성해줘.
+아래 조선시대 야담 대본을 분석하여, 챕터별로 나누고 각 챕터의 핵심 장면 이미지 프롬프트를 **정확히 ${totalScenes}개** 생성해줘.
 
-## 대본:
+## 대본 (${scriptLength}자):
 """
 ${script}
 """
 
+:: 중요 제약 사항 ::
+⚠️ **총 이미지 개수를 정확히 ${totalScenes}개로 제한** (API 성능 최적화)
+
 :: 작업 지침 ::
 
-1. **대본을 4-6개 챕터로 구분**
-   - [도입], [전개], [절정], [마무리] 등 스토리 흐름에 따라
-   - 각 챕터에 명확한 제목 부여
+1. **대본을 정확히 ${chapterCount}개 챕터로 구분**
+   - 스토리 흐름에 따라: [도입] → [전개] → [절정] → [반전] → [마무리]
+   - 각 챕터에 명확하고 매력적인 제목 부여
 
-2. **각 챕터당 2-4개의 핵심 장면 선택**
-   - 총 이미지 개수: 12-20개 정도
-   - 시각적으로 강렬한 순간
-   - 스토리 이해에 필수적인 장면
+2. **각 챕터당 ${scenesPerChapter}의 핵심 장면 선택**
+   - **총합이 정확히 ${totalScenes}개가 되도록 배분**
+   - 시각적으로 가장 강렬하고 임팩트 있는 순간만 선택
+   - 스토리 이해에 필수적인 장면 우선
 
-3. **각 장면마다:**
-   - 한글 설명: 무슨 장면인지 명확히
-   - AI 이미지 프롬프트 (영문): Midjourney/DALL-E 사용 가능
-   - 타임스탬프: 예상 시간 (예: "0:30", "2:15")
+3. **장면 선택 우선순위:**
+   - 주요 인물의 첫 등장
+   - 극적인 대결이나 갈등 순간
+   - 반전이나 클라이맥스
+   - 감정적으로 강렬한 순간
+   - 배경이 특징적인 장면
 
-4. **프롬프트 작성 원칙:**
-   - 조선시대 배경, 복식, 건축 구체적 묘사
-   - 인물의 표정, 감정, 동작
-   - 조명, 구도, 분위기
-   - "Joseon Dynasty", "traditional Korean", "hanbok" 등 키워드 포함
+4. **각 장면마다 반드시 포함:**
+   - 한글 설명: 장면의 핵심을 20자 이내로 간결히
+   - AI 이미지 프롬프트 (영문): 50-80단어, Midjourney/DALL-E 최적화
+   - 타임스탬프: 영상 내 예상 위치 (예: "0:30", "2:45", "5:20")
 
-:: 출력 형식 ::
-JSON 배열로 챕터별 구조화`,
+5. **프롬프트 작성 필수 요소:**
+   - 조선시대 고증: 한복(hanbok), 한옥(hanok), 전통 소품
+   - 구체적 인물 묘사: 표정, 자세, 의상 색상, 신분
+   - 배경 및 분위기: 시간대(낮/밤), 날씨, 조명, 색감
+   - 카메라 구도: close-up, wide shot, dramatic angle
+   - 스타일 키워드: "cinematic", "dramatic lighting", "traditional Korean art style"
+
+:: 출력 예시 ::
+{
+  "chapterNumber": 1,
+  "chapterTitle": "한양 거리의 운명적 만남",
+  "scenes": [
+    {
+      "sceneNumber": 1,
+      "description": "붐비는 시장에서 도둑 발견",
+      "imagePrompt": "Joseon Dynasty marketplace, crowded street with merchants and nobles, shocked nobleman in blue silk hanbok spotting a thief, dramatic moment, traditional Korean architecture, natural daylight, cinematic wide shot, 8k detailed",
+      "timestamp": "0:30"
+    }
+  ]
+}
+
+**반드시 총 ${totalScenes}개의 장면을 ${chapterCount}개 챕터에 고르게 배분하여 생성할 것!**`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -436,13 +488,18 @@ JSON 배열로 챕터별 구조화`,
             },
             required: ["chapterNumber", "chapterTitle", "scenes"]
           }
-        }
+        },
+        temperature: 0.7,
+        topP: 0.9
       }
     });
 
     if (response.text) {
       const parsed = JSON.parse(response.text);
       if (Array.isArray(parsed)) {
+        // 생성된 장면 수 검증
+        const actualTotal = parsed.reduce((sum, ch) => sum + ch.scenes.length, 0);
+        console.log(`이미지 프롬프트 생성: ${actualTotal}/${totalScenes}개`);
         return parsed;
       }
     }
