@@ -12,6 +12,7 @@ import {
   improveScriptWithAnalysis
 } from './services/geminiService';
 import { generateChannelPlan } from './services/planningService';
+import { generateSRT, downloadSRT } from './utils/srtGenerator';
 
 const App: React.FC = () => {
   // State
@@ -37,6 +38,8 @@ const App: React.FC = () => {
   const [showHistory, setShowHistory] = useState<boolean>(false);
   const [compareMode, setCompareMode] = useState<boolean>(false);
   const [scriptType, setScriptType] = useState<'NORMAL' | 'YADAM'>('YADAM'); // 기본값을 야담으로
+  const [editedScriptForSRT, setEditedScriptForSRT] = useState<string>(''); // SRT 생성용 수정 대본
+  const [showSRTEditor, setShowSRTEditor] = useState<boolean>(false);
 
   // Persistence: Load
   useEffect(() => {
@@ -411,6 +414,45 @@ const App: React.FC = () => {
     } finally {
       setLoading('IDLE');
     }
+  };
+
+  // SRT 자막 생성
+  const handleGenerateSRT = () => {
+    if (!editedScriptForSRT.trim()) {
+      alert('⚠️ 대본을 먼저 입력해주세요!');
+      return;
+    }
+
+    try {
+      const srtContent = generateSRT(editedScriptForSRT, {
+        charsPerSecond: 5, // 초당 5자 (읽기 속도)
+        minDuration: 2, // 최소 2초
+        maxDuration: 8, // 최대 8초
+        gapBetweenSubtitles: 0.3 // 자막 간 0.3초 간격
+      });
+
+      // 파일명 생성 (주제 또는 기본값)
+      const filename = session.selectedTopic 
+        ? `${session.selectedTopic.replace(/[^a-zA-Z0-9가-힣]/g, '_')}.srt`
+        : 'subtitle.srt';
+
+      downloadSRT(srtContent, filename);
+      alert(`✅ SRT 자막 파일이 다운로드되었습니다!\n\n파일명: ${filename}`);
+    } catch (error) {
+      console.error('SRT 생성 오류:', error);
+      alert('❌ SRT 자막 생성 중 오류가 발생했습니다.');
+    }
+  };
+
+  // 생성된 대본을 SRT 편집기로 복사
+  const handleCopyToSRTEditor = () => {
+    if (!session.generatedNewScript) {
+      alert('⚠️ 먼저 대본을 생성해주세요!');
+      return;
+    }
+    setEditedScriptForSRT(session.generatedNewScript);
+    setShowSRTEditor(true);
+    alert('✅ 대본이 SRT 편집기로 복사되었습니다!');
   };
 
   // 채널 기획서 생성
@@ -858,6 +900,14 @@ const App: React.FC = () => {
               >
                 <span className="text-lg">📋</span>
                 <span>숏츠</span>
+              </button>
+              <button
+                onClick={handleCopyToSRTEditor}
+                disabled={!session.generatedNewScript}
+                className="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-5 py-3 rounded-xl transition-all shadow-md hover:shadow-lg font-bold text-sm disabled:bg-gray-300 disabled:cursor-not-allowed transform hover:scale-105"
+              >
+                <span className="text-lg">📝</span>
+                <span>자막</span>
               </button>
             </div>
             {!session.generatedNewScript && (
@@ -1616,6 +1666,64 @@ ${plan.uploadSchedule}
                 <p className="text-xs text-blue-600 mt-2">
                   ✨ 팁: 여러 인물을 일관된 스타일로 생성하려면 같은 AI 툴과 설정을 사용하세요.
                 </p>
+              </div>
+            </section>
+          )}
+
+          {/* SRT 자막 편집기 */}
+          {showSRTEditor && (
+            <section className="border-t border-gray-100 pt-6 animate-fade-in">
+              <div className="bg-gradient-to-br from-amber-50 to-yellow-50 p-6 rounded-xl border-2 border-amber-300">
+                <div className="flex justify-between items-center mb-4">
+                  <div className="flex items-center gap-3">
+                    <span className="w-10 h-10 bg-amber-500 text-white rounded-full flex items-center justify-center font-bold text-lg">📝</span>
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-800">SRT 자막 생성기</h3>
+                      <p className="text-sm text-gray-600">대본을 수정한 후 SRT 파일로 다운로드하세요</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowSRTEditor(false)}
+                    className="text-xs bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded"
+                  >
+                    닫기
+                  </button>
+                </div>
+
+                <textarea
+                  className="w-full h-96 p-4 border-2 border-amber-300 rounded-xl focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all resize-none text-base font-sans bg-white shadow-inner mb-4"
+                  value={editedScriptForSRT}
+                  onChange={(e) => setEditedScriptForSRT(e.target.value)}
+                  placeholder="여기에 대본을 수정하세요..."
+                />
+
+                <div className="flex gap-3 mb-4">
+                  <button
+                    onClick={handleGenerateSRT}
+                    disabled={!editedScriptForSRT.trim()}
+                    className="flex-1 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    📥 SRT 파일 다운로드
+                  </button>
+                  <button
+                    onClick={() => setEditedScriptForSRT('')}
+                    className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all"
+                  >
+                    🗑️ 초기화
+                  </button>
+                </div>
+
+                <div className="bg-amber-100 border-2 border-amber-300 rounded-lg p-4">
+                  <p className="text-sm font-bold text-amber-800 mb-2">💡 사용 방법:</p>
+                  <ul className="text-xs text-amber-700 space-y-1 list-disc list-inside">
+                    <li>위 텍스트 영역에서 대본을 자유롭게 수정하세요</li>
+                    <li>문장 부호(. ! ?)로 자막이 자동 분리됩니다</li>
+                    <li>너무 긴 문장은 쉼표(,)로 추가 분리됩니다</li>
+                    <li>읽기 속도: 초당 약 5글자 (한국어 평균)</li>
+                    <li>자막 지속 시간: 최소 2초 ~ 최대 8초</li>
+                    <li>자막 간 간격: 0.3초</li>
+                  </ul>
+                </div>
               </div>
             </section>
           )}
