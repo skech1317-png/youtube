@@ -889,8 +889,8 @@ const App: React.FC = () => {
                 disabled={loading === 'IMAGE_PROMPTS' || !session.generatedNewScript}
                 className="flex items-center gap-2 bg-indigo-500 hover:bg-indigo-600 text-white px-5 py-3 rounded-xl transition-all shadow-md hover:shadow-lg font-bold text-sm disabled:bg-gray-300 disabled:cursor-not-allowed transform hover:scale-105"
               >
-                <span className="text-lg">🎞️</span>
-                <span>장면</span>
+                <span className="text-lg">📝</span>
+                <span>문장</span>
               </button>
               <button
                 onClick={handleAnalyze}
@@ -1089,12 +1089,12 @@ const App: React.FC = () => {
             </section>
           )}
 
-          {/* 챕터별 장면 이미지 프롬프트 (신규) */}
+          {/* 문장별 이미지 프롬프트 (챕터로 구분) */}
           {session.chapterImagePrompts && session.chapterImagePrompts.length > 0 && (
             <section className="border-t border-gray-100 pt-6 animate-fade-in">
               <div className="flex justify-between items-center mb-4">
                 <label className="block text-lg font-bold text-gray-800">
-                  🎞️ 챕터별 장면 이미지 프롬프트 ({session.chapterImagePrompts.length}개 챕터)
+                  📝 문장별 이미지 프롬프트 ({session.chapterImagePrompts.length}개 챕터)
                 </label>
                 <button
                   onClick={() => setSession(prev => ({ ...prev, chapterImagePrompts: [] }))}
@@ -1114,7 +1114,7 @@ const App: React.FC = () => {
                         </span>
                         <div>
                           <h3 className="font-bold text-lg text-indigo-900">{chapter.chapterTitle}</h3>
-                          <p className="text-sm text-indigo-700">{chapter.scenes.length}개 장면</p>
+                          <p className="text-sm text-indigo-700">{chapter.scenes.length}개 문장</p>
                         </div>
                       </div>
                     </summary>
@@ -1164,7 +1164,8 @@ const App: React.FC = () => {
                 </p>
                 <ul className="text-xs text-indigo-800 space-y-1 list-disc list-inside">
                   <li>각 챕터를 클릭하여 확장/축소</li>
-                  <li>장면별 타임스탬프 확인</li>
+                  <li>대본의 원문 문장이 그대로 표시됩니다</li>
+                  <li>문장별 타임스탬프 확인</li>
                   <li>프롬프트 복사 → Midjourney/DALL-E에 입력</li>
                   <li>스토리 순서대로 이미지 생성 권장</li>
                 </ul>
