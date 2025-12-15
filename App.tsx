@@ -46,6 +46,9 @@ const App: React.FC = () => {
   const [srtMinDuration, setSrtMinDuration] = useState<number>(2); // 최소 지속 시간
   const [srtMaxDuration, setSrtMaxDuration] = useState<number>(8); // 최대 지속 시간
   const [srtGap, setSrtGap] = useState<number>(0.3); // 자막 간 간격
+  
+  // 대본 글자수 설정
+  const [targetScriptLength, setTargetScriptLength] = useState<number>(3000); // 목표 글자수
 
   // Persistence: Load
   useEffect(() => {
@@ -134,10 +137,10 @@ const App: React.FC = () => {
       // 히스토리 참고용으로 최근 3개 대본 전달
       const recentHistory = session.history.slice(-3).map(h => h.script).join('\n---\n');
       
-      // 야담 스타일 또는 일반 스타일
+      // 야담 스타일 또는 일반 스타일 (글자수 전달)
       const script = scriptType === 'YADAM' 
-        ? await generateYadamScript(topic, session.originalScript, session.apiKey, recentHistory)
-        : await generateScriptForTopic(topic, session.originalScript, session.apiKey, recentHistory);
+        ? await generateYadamScript(topic, session.originalScript, session.apiKey, recentHistory, targetScriptLength)
+        : await generateScriptForTopic(topic, session.originalScript, session.apiKey, recentHistory, targetScriptLength);
       
       const newGeneratedScript = {
         topic,
@@ -811,31 +814,50 @@ const App: React.FC = () => {
               value={session.originalScript}
               onChange={handleInputChange}
             />
-            <div className="mt-4 flex justify-between items-center">
-              <div className="text-sm text-gray-600">
-                {session.originalScript.length > 0 && (
-                  <span className="bg-blue-100 px-3 py-1 rounded-full">
-                    📝 {session.originalScript.length}자 입력됨
-                  </span>
-                )}
+            <div className="mt-4 space-y-3">
+              <div className="flex items-center gap-4">
+                <label className="text-sm font-bold text-gray-700 whitespace-nowrap">
+                  🎯 목표 글자수:
+                </label>
+                <input
+                  type="number"
+                  value={targetScriptLength}
+                  onChange={(e) => setTargetScriptLength(Math.max(500, Math.min(20000, parseInt(e.target.value) || 3000)))}
+                  min="500"
+                  max="20000"
+                  step="100"
+                  className="w-32 px-3 py-2 border-2 border-blue-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all text-center font-bold"
+                />
+                <span className="text-sm text-gray-600">
+                  글자 (500~20,000)
+                </span>
               </div>
-              <button
-                onClick={handleSuggest}
-                disabled={loading !== 'IDLE' || !session.originalScript.trim()}
-                className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-4 rounded-xl font-bold text-lg hover:from-blue-700 hover:to-indigo-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center gap-3"
-              >
-                {loading === 'SUGGESTING' ? (
-                  <>
-                    <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
-                    <span>대본 분석 중...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>🚀 DNA 분석 시작</span>
-                    <span className="text-2xl">→</span>
-                  </>
-                )}
-              </button>
+              <div className="flex justify-between items-center">
+                <div className="text-sm text-gray-600">
+                  {session.originalScript.length > 0 && (
+                    <span className="bg-blue-100 px-3 py-1 rounded-full">
+                      📝 {session.originalScript.length}자 입력됨
+                    </span>
+                  )}
+                </div>
+                <button
+                  onClick={handleSuggest}
+                  disabled={loading !== 'IDLE' || !session.originalScript.trim()}
+                  className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-4 rounded-xl font-bold text-lg hover:from-blue-700 hover:to-indigo-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center gap-3"
+                >
+                  {loading === 'SUGGESTING' ? (
+                    <>
+                      <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
+                      <span>대본 분석 중...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>🚀 DNA 분석 시작</span>
+                      <span className="text-2xl">→</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
             {errorMsg && <p className="text-red-600 text-sm mt-3 bg-red-50 p-3 rounded-lg border border-red-200">{errorMsg}</p>}
           </section>
