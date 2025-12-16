@@ -46,9 +46,6 @@ const App: React.FC = () => {
   const [srtMinDuration, setSrtMinDuration] = useState<number>(2); // 최소 지속 시간
   const [srtMaxDuration, setSrtMaxDuration] = useState<number>(8); // 최대 지속 시간
   const [srtGap, setSrtGap] = useState<number>(0.3); // 자막 간 간격
-  
-  // 대본 글자수 설정
-  const [targetScriptLength, setTargetScriptLength] = useState<number>(3000); // 목표 글자수
 
   // Persistence: Load
   useEffect(() => {
@@ -137,10 +134,10 @@ const App: React.FC = () => {
       // 히스토리 참고용으로 최근 3개 대본 전달
       const recentHistory = session.history.slice(-3).map(h => h.script).join('\n---\n');
       
-      // 야담 스타일 또는 일반 스타일 (글자수 전달)
+      // 야담 스타일 또는 일반 스타일
       const script = scriptType === 'YADAM' 
-        ? await generateYadamScript(topic, session.originalScript, session.apiKey, recentHistory, targetScriptLength)
-        : await generateScriptForTopic(topic, session.originalScript, session.apiKey, recentHistory, targetScriptLength);
+        ? await generateYadamScript(topic, session.originalScript, session.apiKey, recentHistory)
+        : await generateScriptForTopic(topic, session.originalScript, session.apiKey, recentHistory);
       
       const newGeneratedScript = {
         topic,
@@ -814,50 +811,31 @@ const App: React.FC = () => {
               value={session.originalScript}
               onChange={handleInputChange}
             />
-            <div className="mt-4 space-y-3">
-              <div className="flex items-center gap-4">
-                <label className="text-sm font-bold text-gray-700 whitespace-nowrap">
-                  🎯 목표 글자수:
-                </label>
-                <input
-                  type="number"
-                  value={targetScriptLength}
-                  onChange={(e) => setTargetScriptLength(Math.max(500, Math.min(20000, parseInt(e.target.value) || 3000)))}
-                  min="500"
-                  max="20000"
-                  step="100"
-                  className="w-32 px-3 py-2 border-2 border-blue-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all text-center font-bold"
-                />
-                <span className="text-sm text-gray-600">
-                  글자 (500~20,000)
-                </span>
+            <div className="mt-4 flex justify-between items-center">
+              <div className="text-sm text-gray-600">
+                {session.originalScript.length > 0 && (
+                  <span className="bg-blue-100 px-3 py-1 rounded-full">
+                    📝 {session.originalScript.length}자 입력됨
+                  </span>
+                )}
               </div>
-              <div className="flex justify-between items-center">
-                <div className="text-sm text-gray-600">
-                  {session.originalScript.length > 0 && (
-                    <span className="bg-blue-100 px-3 py-1 rounded-full">
-                      📝 {session.originalScript.length}자 입력됨
-                    </span>
-                  )}
-                </div>
-                <button
-                  onClick={handleSuggest}
-                  disabled={loading !== 'IDLE' || !session.originalScript.trim()}
-                  className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-4 rounded-xl font-bold text-lg hover:from-blue-700 hover:to-indigo-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center gap-3"
-                >
-                  {loading === 'SUGGESTING' ? (
-                    <>
-                      <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
-                      <span>대본 분석 중...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>🚀 DNA 분석 시작</span>
-                      <span className="text-2xl">→</span>
-                    </>
-                  )}
-                </button>
-              </div>
+              <button
+                onClick={handleSuggest}
+                disabled={loading !== 'IDLE' || !session.originalScript.trim()}
+                className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-4 rounded-xl font-bold text-lg hover:from-blue-700 hover:to-indigo-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center gap-3"
+              >
+                {loading === 'SUGGESTING' ? (
+                  <>
+                    <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
+                    <span>대본 분석 중...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>🚀 DNA 분석 시작</span>
+                    <span className="text-2xl">→</span>
+                  </>
+                )}
+              </button>
             </div>
             {errorMsg && <p className="text-red-600 text-sm mt-3 bg-red-50 p-3 rounded-lg border border-red-200">{errorMsg}</p>}
           </section>
@@ -1281,12 +1259,28 @@ const App: React.FC = () => {
                 <p className="text-xs mt-3 opacity-90">이것만 고쳐도 영상이 살아납니다. 지금 바로 수정하세요.</p>
               </div>
 
-              {/* 문제 요약 & 대본 개선 버튼 */}
+              {/* 문제 요약 & 대본 자동 개선 버튼 */}
               <div className="mt-6 bg-gradient-to-br from-blue-50 to-purple-50 p-6 rounded-xl border-2 border-blue-300">
                 <div className="mb-4">
                   <h3 className="font-bold text-xl text-gray-800 mb-3 flex items-center gap-2">
-                    <span>📊</span> 분석 요약
+                    <span>📊</span> 분석 요약 & 자동 개선
                   </h3>
+                  
+                  {/* 개선 필요 여부 알림 */}
+                  {(session.analysis.hookingScore < 7 || 
+                    session.analysis.logicalFlaws.length > 0 || 
+                    session.analysis.boringParts.length > 0) && (
+                    <div className="mb-4 bg-yellow-100 border-2 border-yellow-400 rounded-lg p-4">
+                      <p className="font-bold text-yellow-800 flex items-center gap-2">
+                        <span className="text-2xl">⚠️</span>
+                        <span>대본 개선이 필요합니다!</span>
+                      </p>
+                      <p className="text-sm text-yellow-700 mt-2">
+                        아래 "🔧 대본 자동 개선" 버튼을 클릭하면 PD 피드백을 100% 반영한 새 대본이 생성됩니다.
+                      </p>
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-3 gap-4 mb-4">
                     <div className="bg-white p-4 rounded-lg text-center shadow-sm">
                       <p className="text-xs text-gray-600 mb-1">후킹 점수</p>
@@ -1298,14 +1292,23 @@ const App: React.FC = () => {
                       }`}>
                         {session.analysis.hookingScore}/10
                       </p>
+                      {session.analysis.hookingScore < 7 && (
+                        <p className="text-xs text-red-600 font-bold mt-1">개선 필요!</p>
+                      )}
                     </div>
                     <div className="bg-white p-4 rounded-lg text-center shadow-sm">
                       <p className="text-xs text-gray-600 mb-1">논리적 허점</p>
                       <p className="text-3xl font-black text-yellow-600">{session.analysis.logicalFlaws.length}개</p>
+                      {session.analysis.logicalFlaws.length > 0 && (
+                        <p className="text-xs text-yellow-600 font-bold mt-1">수정 필요!</p>
+                      )}
                     </div>
                     <div className="bg-white p-4 rounded-lg text-center shadow-sm">
                       <p className="text-xs text-gray-600 mb-1">지루함 경보</p>
                       <p className="text-3xl font-black text-orange-600">{session.analysis.boringParts.length}개</p>
+                      {session.analysis.boringParts.length > 0 && (
+                        <p className="text-xs text-orange-600 font-bold mt-1">압축 필요!</p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1319,15 +1322,15 @@ const App: React.FC = () => {
                     {loading === 'IMPROVING' ? (
                       <span className="flex items-center gap-3">
                         <div className="h-7 w-7 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
-                        <span>PD 피드백 반영 중... (30초 소요)</span>
+                        <span>PD 피드백 100% 반영 중... (30초 소요)</span>
                       </span>
                     ) : (
                       <span className="flex items-center gap-3">
                         <span className="text-3xl">🔧</span>
                         <div>
-                          <div>PD 분석 결과 반영하여 대본 자동 개선</div>
+                          <div>대본 자동 개선 (PD 피드백 100% 반영)</div>
                           <div className="text-xs opacity-90 mt-1">
-                            논리적 허점 보완 + 후킹 강화 + 템포 조절
+                            후킹 강화 + 논리적 허점 보완 + 지루함 제거 + 댄 하몬 구조 적용
                           </div>
                         </div>
                       </span>
@@ -1335,6 +1338,15 @@ const App: React.FC = () => {
                   </button>
                 </div>
                 
+                {/* 안내 메시지 */}
+                <div className="mt-4 text-center">
+                  <p className="text-xs text-gray-600">
+                    💡 <strong>자동 개선 시:</strong> 위의 모든 문제점을 반영한 완전히 새로운 대본이 생성됩니다
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    (원본 주제와 핵심 메시지는 유지하면서 후킹/논리/템포만 개선)
+                  </p>
+                </div>
                 <div className="mt-4 p-4 bg-blue-100 rounded-lg border border-blue-300">
                   <p className="text-sm text-blue-900">
                     <strong>💡 작동 방식:</strong> AI가 PD의 모든 피드백을 반영하여 대본을 자동으로 재작성합니다. 
