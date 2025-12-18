@@ -569,6 +569,73 @@ ${scriptSummary}
   }
 };
 
+// 9-1. YouTube 영상 설명(디스크립션) 생성
+export const generateVideoDescription = async (script: string, title: string, apiKey: string): Promise<string> => {
+  try {
+    const ai = getAI(apiKey);
+    const scriptSummary = script.length > 3000 ? script.substring(0, 3000) + '...' : script;
+    
+    const response = await ai.models.generateContent({
+      model: MODEL_NAME,
+      contents: `다음 조선시대 야담 대본과 제목을 바탕으로 YouTube 영상 설명(디스크립션)을 작성해줘.
+
+# 제목
+"${title}"
+
+# 대본 내용
+"""
+${scriptSummary}
+"""
+
+## YouTube 디스크립션 작성 가이드:
+
+**1. 인트로 (2-3줄)**
+- 시청자의 호기심을 자극하는 짧은 요약
+- "이 영상에서는..." 형식 사용
+- 핵심 키워드 자연스럽게 포함
+
+**2. 본문 요약 (3-5줄)**
+- 대본의 주요 내용 간략 설명
+- 등장인물, 사건, 결말 힌트
+- 역사적 배경이나 교훈 언급
+
+**3. 타임스탬프 (챕터 구분)**
+- 00:00 인트로
+- 00:30 [주요 사건 1]
+- 02:00 [주요 사건 2]
+- 04:00 반전
+- 06:00 결말과 교훈
+(대본 분량에 따라 적절히 조정)
+
+**4. 해시태그 (5-10개)**
+#조선시대 #야담 #한국역사 #실화 #스토리텔링 등
+
+**5. 채널 소개 & CTA**
+- 구독 & 알림 설정 요청
+- 관련 영상 링크
+- 채널 소개 한 줄
+
+## 작성 원칙:
+- SEO 최적화 (키워드 자연스럽게 배치)
+- 읽기 쉽게 줄바꿈 활용
+- 이모지 적절히 사용
+- 스포일러 주의 (결말은 암시만)
+- 친근하고 흥미로운 톤
+
+완성된 디스크립션만 출력하세요.`,
+      config: {
+        temperature: 0.8,
+        topP: 0.9
+      }
+    });
+
+    return response.text?.trim() || "조선시대 야담 이야기입니다.";
+  } catch (error) {
+    console.error("Gemini Description Error:", error);
+    throw new Error("영상 설명 생성 중 오류가 발생했습니다.");
+  }
+};
+
 // 10. PD 분석 결과 기반 대본 개선 (강화된 버전)
 export const improveScriptWithAnalysis = async (
   originalScript: string,

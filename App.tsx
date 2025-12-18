@@ -8,6 +8,7 @@ import {
   generateShortsScript,
   generateImagePrompts,
   generateVideoTitle,
+  generateVideoDescription,
   generateThumbnails,
   improveScriptWithAnalysis
 } from './services/geminiService';
@@ -354,6 +355,37 @@ const App: React.FC = () => {
       }));
     } catch (e) {
       setErrorMsg("제목 생성 실패: 잠시 후 다시 시도해주세요.");
+    } finally {
+      setLoading('IDLE');
+    }
+  };
+
+  // 영상 설명(디스크립션) 생성
+  const handleGenerateDescription = async () => {
+    if (!session.generatedNewScript) {
+      setErrorMsg("먼저 대본을 생성해주세요.");
+      return;
+    }
+    if (!session.apiKey || !session.apiKey.trim()) {
+      alert("⚠️ API 키를 먼저 입력해주세요!");
+      setErrorMsg("API 키를 먼저 입력해주세요.");
+      return;
+    }
+
+    const title = session.videoTitle || session.selectedTopic || "조선시대 야담";
+
+    setLoading('TITLE'); // 디스크립션용 로딩 상태 추가 가능
+    setErrorMsg(null);
+
+    try {
+      const description = await generateVideoDescription(session.generatedNewScript, title, session.apiKey);
+      setSession(prev => ({
+        ...prev,
+        videoDescription: description,
+      }));
+      alert('✅ 영상 설명(디스크립션)이 생성되었습니다!');
+    } catch (e) {
+      setErrorMsg("영상 설명 생성 실패: 잠시 후 다시 시도해주세요.");
     } finally {
       setLoading('IDLE');
     }
@@ -876,6 +908,14 @@ const App: React.FC = () => {
                 <span>제목</span>
               </button>
               <button
+                onClick={handleGenerateDescription}
+                disabled={loading === 'TITLE' || !session.generatedNewScript}
+                className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-5 py-3 rounded-xl transition-all shadow-md hover:shadow-lg font-bold text-sm disabled:bg-gray-300 disabled:cursor-not-allowed transform hover:scale-105"
+              >
+                <span className="text-lg">📄</span>
+                <span>설명</span>
+              </button>
+              <button
                 onClick={handleGenerateThumbnails}
                 disabled={loading === 'THUMBNAILS' || !session.generatedNewScript}
                 className="flex items-center gap-2 bg-yellow-500 hover:bg-yellow-600 text-white px-5 py-3 rounded-xl transition-all shadow-md hover:shadow-lg font-bold text-sm disabled:bg-gray-300 disabled:cursor-not-allowed transform hover:scale-105"
@@ -1036,6 +1076,47 @@ const App: React.FC = () => {
                       </button>
                     </div>
                   ))}
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* 영상 설명(디스크립션) 표시 */}
+          {session.videoDescription && (
+            <section className="border-t border-gray-100 pt-6 animate-fade-in">
+              <div className="bg-green-50 p-6 rounded-lg border-2 border-green-200">
+                <div className="flex justify-between items-center mb-3">
+                  <h3 className="text-lg font-bold text-green-800 flex items-center gap-2">
+                    <span>📄</span>
+                    <span>YouTube 영상 설명</span>
+                  </h3>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(session.videoDescription!);
+                        alert('영상 설명이 복사되었습니다!');
+                      }}
+                      className="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded"
+                    >
+                      📋 복사
+                    </button>
+                    <button
+                      onClick={() => setSession(prev => ({ ...prev, videoDescription: null }))}
+                      className="text-xs bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded"
+                    >
+                      닫기
+                    </button>
+                  </div>
+                </div>
+                <div className="bg-white p-5 rounded-lg border border-green-100">
+                  <pre className="whitespace-pre-wrap font-sans text-gray-700 leading-relaxed text-sm">
+                    {session.videoDescription}
+                  </pre>
+                </div>
+                <div className="mt-3 p-3 bg-green-100 border border-green-200 rounded">
+                  <p className="text-xs text-green-800">
+                    💡 <strong>사용 방법:</strong> YouTube 스튜디오에서 영상 업로드 시 위 내용을 복사하여 "설명" 란에 붙여넣으세요.
+                  </p>
                 </div>
               </div>
             </section>

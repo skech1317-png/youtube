@@ -88,6 +88,7 @@ export interface ScriptSession {
   channelPlans: ChannelPlan[]; // 채널 기획서들
   imagePrompts: ImagePrompt[]; // 등장인물 이미지 프롬프트
   videoTitle: string | null; // 생성된 제목
+  videoDescription: string | null; // 생성된 영상 설명
   thumbnails: ThumbnailPrompt[]; // 썸네일 프롬프트들
 }
 
@@ -105,6 +106,7 @@ export const INITIAL_SESSION: ScriptSession = {
   channelPlans: [],
   imagePrompts: [],
   videoTitle: null,
+  videoDescription: null,
   thumbnails: [],
 };
 
