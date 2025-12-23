@@ -48,7 +48,24 @@ export const suggestTopicsFromScript = async (script: string, apiKey: string): P
     console.error("Gemini Topic Error 상세:", error);
     console.error("에러 메시지:", error.message);
     console.error("에러 스택:", error.stack);
-    throw new Error(`주제 추천 중 오류: ${error.message || '알 수 없는 오류'}`);
+    
+    // 구체적인 에러 메시지 제공
+    let errorMessage = '알 수 없는 오류';
+    if (error.message) {
+      if (error.message.includes('API key')) {
+        errorMessage = 'API 키가 유효하지 않습니다. 올바른 Gemini API 키를 입력했는지 확인하세요.';
+      } else if (error.message.includes('404') || error.message.includes('not found')) {
+        errorMessage = '모델을 찾을 수 없습니다. gemini-1.5-flash 모델에 접근 권한이 있는지 확인하세요.';
+      } else if (error.message.includes('quota') || error.message.includes('limit')) {
+        errorMessage = 'API 사용량 한도를 초과했습니다. 잠시 후 다시 시도하거나 새 API 키를 발급받으세요.';
+      } else if (error.message.includes('network') || error.message.includes('fetch')) {
+        errorMessage = '네트워크 연결 오류입니다. 인터넷 연결을 확인하세요.';
+      } else {
+        errorMessage = error.message;
+      }
+    }
+    
+    throw new Error(`주제 추천 실패: ${errorMessage}`);
   }
 };
 
@@ -103,9 +120,10 @@ ${historyPrompt}
     });
 
     return response.text || "대본을 생성하지 못했습니다.";
-  } catch (error) {
+  } catch (error: any) {
     console.error("Gemini Script Error:", error);
-    throw new Error("대본 작성 중 오류가 발생했습니다.");
+    const errorMsg = error?.message || "알 수 없는 오류";
+    throw new Error(`대본 작성 실패: ${errorMsg}. API 키와 네트워크 연결을 확인하세요.`);
   }
 };
 
@@ -257,9 +275,10 @@ ${targetLength}
     });
 
     return response.text || "야담 대본을 생성하지 못했습니다.";
-  } catch (error) {
+  } catch (error: any) {
     console.error("Gemini Yadam Error:", error);
-    throw new Error("야담 대본 작성 중 오류가 발생했습니다.");
+    const errorMsg = error?.message || "알 수 없는 오류";
+    throw new Error(`야담 대본 작성 실패: ${errorMsg}. API 키가 올바른지 확인하세요.`);
   }
 };
 
