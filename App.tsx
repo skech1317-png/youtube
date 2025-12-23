@@ -151,8 +151,8 @@ const App: React.FC = () => {
       const analysis = await analyzeScriptAsPD(script, session.apiKey);
       setSession(prev => ({ ...prev, analysis }));
 
-      // 2. 분석 결과를 사용자에게 보여주기 위한 짧은 대기
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // 2. 분석 결과를 사용자에게 보여주고 API 속도 제한 회피 (429 에러 방지)
+      await new Promise(resolve => setTimeout(resolve, 3000));
 
       // 3. 자동으로 개선된 대본 생성
       setLoading('IMPROVING');
@@ -237,16 +237,16 @@ const App: React.FC = () => {
       // 대본 생성 완료 후 자동으로 제목, 썸네일, 등장인물 이미지 프롬프트 생성
       await generateAllMetadata(script);
 
-      // ⚠️ 자동 개선 비활성화 (429 에러 방지 - API 호출 과다)
-      // 사용자가 수동으로 "🎬 PD분석" → "🔧 자동개선" 버튼을 클릭하여 실행할 수 있습니다
-      /*
+      // 메타데이터 생성 후 추가 대기 (API 속도 제한 회피)
+      await new Promise(resolve => setTimeout(resolve, 3000));
+
+      // 자동으로 PD 분석 및 개선 실행 (속도 제어 포함)
       try {
         await autoAnalyzeAndImprove(script, topic);
       } catch (autoImproveError: any) {
         console.error('자동 개선 호출 실패:', autoImproveError);
         // 자동 개선 실패는 치명적이지 않으므로 계속 진행
       }
-      */
     } catch (e: any) {
       const errorMsg = e?.message || "대본 생성 실패: 잠시 후 다시 시도해주세요.";
       setErrorMsg(errorMsg);
@@ -266,6 +266,8 @@ const App: React.FC = () => {
       setLoading('TITLE');
       const title = await generateVideoTitle(script, session.apiKey);
       setSession(prev => ({ ...prev, videoTitle: title }));
+      // API 호출 간격 조절 (429 에러 방지)
+      await new Promise(resolve => setTimeout(resolve, 2000));
     } catch (e: any) {
       console.error('제목 생성 실패:', e);
       errors.push('제목 생성');
@@ -276,6 +278,8 @@ const App: React.FC = () => {
       setLoading('THUMBNAILS');
       const thumbnails = await generateThumbnails(script, session.videoTitle || '제목 없음', session.apiKey);
       setSession(prev => ({ ...prev, thumbnails }));
+      // API 호출 간격 조절 (429 에러 방지)
+      await new Promise(resolve => setTimeout(resolve, 2000));
     } catch (e: any) {
       console.error('썸네일 생성 실패:', e);
       errors.push('썸네일');
