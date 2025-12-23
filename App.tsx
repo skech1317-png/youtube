@@ -1013,6 +1013,14 @@ const App: React.FC = () => {
                 <span>PD분석</span>
               </button>
               <button
+                onClick={handleImproveScript}
+                disabled={loading === 'IMPROVING' || !session.generatedNewScript || !session.analysis}
+                className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-5 py-3 rounded-xl transition-all shadow-md hover:shadow-lg font-bold text-sm disabled:bg-gray-300 disabled:cursor-not-allowed transform hover:scale-105"
+              >
+                <span className="text-lg">🔧</span>
+                <span>자동개선</span>
+              </button>
+              <button
                 onClick={handleGeneratePlan}
                 disabled={loading === 'PLANNING' || !session.generatedNewScript}
                 className="flex items-center gap-2 bg-teal-500 hover:bg-teal-600 text-white px-5 py-3 rounded-xl transition-all shadow-md hover:shadow-lg font-bold text-sm disabled:bg-gray-300 disabled:cursor-not-allowed transform hover:scale-105"
