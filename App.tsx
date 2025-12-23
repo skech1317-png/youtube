@@ -122,6 +122,73 @@ const App: React.FC = () => {
     }
   };
 
+  // 자동 분석 함수 (개선은 하지 않음)
+  const autoAnalyzeOnly = async (script: string) => {
+    try {
+      // PD 분석만 실행
+      setLoading('ANALYZING');
+      const analysis = await analyzeScriptAsPD(script, session.apiKey);
+      setSession(prev => ({ ...prev, analysis }));
+      
+      // 분석 완료 알림
+      alert(
+        '✅ PD 분석 완료!\n\n' +
+        `📊 후킹 점수: ${analysis.hookingScore}/10\n` +
+        `⚠️ 발견된 문제: 논리적 허점 ${analysis.logicalFlaws.length}개, 지루함 경보 ${analysis.boringParts.length}개\n\n` +
+        '💡 아래의 "🔧 자동 개선" 버튼을 클릭하면 PD 피드백을 반영한 개선 대본을 생성합니다.'
+      );
+    } catch (e) {
+      console.error('자동 분석 실패:', e);
+      // 자동 분석 실패는 치명적이지 않으므로 조용히 처리
+    }
+  };
+
+  // 자동 분석 및 개선 함수 (원본 대본용 - 즉시 개선)
+  const autoAnalyzeAndImprove = async (script: string, topic: string) => {
+    try {
+      // 1. PD 분석 자동 실행
+      setLoading('ANALYZING');
+      const analysis = await analyzeScriptAsPD(script, session.apiKey);
+      setSession(prev => ({ ...prev, analysis }));
+
+      // 2. 분석 결과를 사용자에게 보여주기 위한 짧은 대기
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // 3. 자동으로 개선된 대본 생성
+      setLoading('IMPROVING');
+      const improvedScript = await improveScriptWithAnalysis(
+        script,
+        analysis,
+        session.apiKey
+      );
+
+      // 4. 개선된 대본을 히스토리에 추가
+      saveToHistory(topic + ' (AI개선ver)', improvedScript, true);
+
+      // 5. 개선된 대본으로 메타데이터 재생성
+      await generateAllMetadata(improvedScript);
+
+      // 6. 개선 완료 알림
+      alert(
+        '✅ 대본 자동 개선 완료!\n\n' +
+        `📊 원본 후킹 점수: ${analysis.hookingScore}/10\n` +
+        `⚠️ 발견된 문제: 논리적 허점 ${analysis.logicalFlaws.length}개, 지루함 경보 ${analysis.boringParts.length}개\n\n` +
+        '🎯 PD 피드백이 모두 반영되어 개선된 대본이 생성되었습니다.\n' +
+        '📝 히스토리에서 원본과 개선 버전을 비교해보세요!'
+      );
+
+      // 7. 개선된 대본을 현재 대본으로 설정 (선택사항)
+      setSession(prev => ({ 
+        ...prev, 
+        generatedNewScript: improvedScript 
+      }));
+
+    } catch (e) {
+      console.error('자동 분석 및 개선 실패:', e);
+      // 자동 개선 실패는 치명적이지 않으므로 조용히 처리
+    }
+  };
+
   // Handler: Step 2 - Generate Script
   const handleGenerateScript = async (topic: string) => {
     if (!session.apiKey || !session.apiKey.trim()) {
@@ -193,73 +260,6 @@ const App: React.FC = () => {
     } catch (e) {
       console.error('메타데이터 생성 실패:', e);
       // 메타데이터 생성 실패는 치명적이지 않으므로 에러 메시지만 표시
-    }
-  };
-
-  // 자동 분석 함수 (개선은 하지 않음)
-  const autoAnalyzeOnly = async (script: string) => {
-    try {
-      // PD 분석만 실행
-      setLoading('ANALYZING');
-      const analysis = await analyzeScriptAsPD(script, session.apiKey);
-      setSession(prev => ({ ...prev, analysis }));
-      
-      // 분석 완료 알림
-      alert(
-        '✅ PD 분석 완료!\n\n' +
-        `📊 후킹 점수: ${analysis.hookingScore}/10\n` +
-        `⚠️ 발견된 문제: 논리적 허점 ${analysis.logicalFlaws.length}개, 지루함 경보 ${analysis.boringParts.length}개\n\n` +
-        '💡 아래의 "🔧 자동 개선" 버튼을 클릭하면 PD 피드백을 반영한 개선 대본을 생성합니다.'
-      );
-    } catch (e) {
-      console.error('자동 분석 실패:', e);
-      // 자동 분석 실패는 치명적이지 않으므로 조용히 처리
-    }
-  };
-
-  // 자동 분석 및 개선 함수 (원본 대본용 - 즉시 개선)
-  const autoAnalyzeAndImprove = async (script: string, topic: string) => {
-    try {
-      // 1. PD 분석 자동 실행
-      setLoading('ANALYZING');
-      const analysis = await analyzeScriptAsPD(script, session.apiKey);
-      setSession(prev => ({ ...prev, analysis }));
-
-      // 2. 분석 결과를 사용자에게 보여주기 위한 짧은 대기
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // 3. 자동으로 개선된 대본 생성
-      setLoading('IMPROVING');
-      const improvedScript = await improveScriptWithAnalysis(
-        script,
-        analysis,
-        session.apiKey
-      );
-
-      // 4. 개선된 대본을 히스토리에 추가
-      saveToHistory(topic + ' (AI개선ver)', improvedScript, true);
-
-      // 5. 개선된 대본으로 메타데이터 재생성
-      await generateAllMetadata(improvedScript);
-
-      // 6. 개선 완료 알림
-      alert(
-        '✅ 대본 자동 개선 완료!\n\n' +
-        `📊 원본 후킹 점수: ${analysis.hookingScore}/10\n` +
-        `⚠️ 발견된 문제: 논리적 허점 ${analysis.logicalFlaws.length}개, 지루함 경보 ${analysis.boringParts.length}개\n\n` +
-        '🎯 PD 피드백이 모두 반영되어 개선된 대본이 생성되었습니다.\n' +
-        '📝 히스토리에서 원본과 개선 버전을 비교해보세요!'
-      );
-
-      // 7. 개선된 대본을 현재 대본으로 설정 (선택사항)
-      setSession(prev => ({ 
-        ...prev, 
-        generatedNewScript: improvedScript 
-      }));
-
-    } catch (e) {
-      console.error('자동 분석 및 개선 실패:', e);
-      // 자동 개선 실패는 치명적이지 않으므로 조용히 처리
     }
   };
 
