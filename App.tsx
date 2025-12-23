@@ -237,13 +237,16 @@ const App: React.FC = () => {
       // 대본 생성 완료 후 자동으로 제목, 썸네일, 등장인물 이미지 프롬프트 생성
       await generateAllMetadata(script);
 
-      // 자동으로 PD 분석 및 개선 실행 (실패해도 대본 생성은 완료됨)
+      // ⚠️ 자동 개선 비활성화 (429 에러 방지 - API 호출 과다)
+      // 사용자가 수동으로 "🎬 PD분석" → "🔧 자동개선" 버튼을 클릭하여 실행할 수 있습니다
+      /*
       try {
         await autoAnalyzeAndImprove(script, topic);
       } catch (autoImproveError: any) {
         console.error('자동 개선 호출 실패:', autoImproveError);
         // 자동 개선 실패는 치명적이지 않으므로 계속 진행
       }
+      */
     } catch (e: any) {
       const errorMsg = e?.message || "대본 생성 실패: 잠시 후 다시 시도해주세요.";
       setErrorMsg(errorMsg);

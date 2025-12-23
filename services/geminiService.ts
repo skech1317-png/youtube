@@ -62,8 +62,8 @@ export const suggestTopicsFromScript = async (script: string, apiKey: string): P
         errorMessage = 'API 키가 유효하지 않습니다. 올바른 Gemini API 키를 입력했는지 확인하세요.';
       } else if (error.message.includes('404') || error.message.includes('not found')) {
         errorMessage = '모델을 찾을 수 없습니다. gemini-1.5-flash 모델에 접근 권한이 있는지 확인하세요.';
-      } else if (error.message.includes('quota') || error.message.includes('limit')) {
-        errorMessage = 'API 사용량 한도를 초과했습니다. 잠시 후 다시 시도하거나 새 API 키를 발급받으세요.';
+      } else if (error.message.includes('429') || error.message.includes('quota') || error.message.includes('limit')) {
+        errorMessage = 'API 사용량 한도를 초과했습니다 (429 에러).\n\n해결 방법:\n1. 5-10분 후 다시 시도\n2. 새 API 키 발급 (https://aistudio.google.com/apikey)\n3. 무료 티어는 분당 15회 제한이 있습니다.';
       } else if (error.message.includes('network') || error.message.includes('fetch')) {
         errorMessage = '네트워크 연결 오류입니다. 인터넷 연결을 확인하세요.';
       } else {
