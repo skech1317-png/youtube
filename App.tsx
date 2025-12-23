@@ -228,8 +228,8 @@ const App: React.FC = () => {
       // 대본 생성 완료 후 자동으로 제목, 썸네일, 등장인물 이미지 프롬프트 생성
       await generateAllMetadata(script);
 
-      // 자동으로 PD 분석만 실행 (개선은 사용자가 버튼 클릭 시)
-      await autoAnalyzeOnly(script);
+      // 자동으로 PD 분석 및 개선 실행
+      await autoAnalyzeAndImprove(script, topic);
     } catch (e: any) {
       const errorMsg = e?.message || "대본 생성 실패: 잠시 후 다시 시도해주세요.";
       setErrorMsg(errorMsg);
