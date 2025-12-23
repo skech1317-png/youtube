@@ -4,7 +4,13 @@ import { ScriptAnalysis, ShortsScript } from "../types";
 const MODEL_NAME = 'gemini-1.5-flash';
 
 // API 키를 받아서 AI 인스턴스 생성하는 헬퍼 함수
-const getAI = (apiKey: string) => new GoogleGenAI({ apiKey });
+const getAI = (apiKey: string) => {
+  console.log('getAI 호출됨, API 키 길이:', apiKey?.length);
+  if (!apiKey || apiKey.trim() === '') {
+    throw new Error('API 키가 제공되지 않았습니다.');
+  }
+  return new GoogleGenAI({ apiKey });
+};
 
 // 1. 주제 추천 함수
 export const suggestTopicsFromScript = async (script: string, apiKey: string): Promise<string[]> => {
@@ -285,7 +291,9 @@ ${targetLength}
 // 4. PD 페르소나 - 대본 분석 (냉철하고 비판적)
 export const analyzeScriptAsPD = async (script: string, apiKey: string): Promise<ScriptAnalysis> => {
   try {
+    console.log('PD 분석 시작...');
     const ai = getAI(apiKey);
+    console.log('AI 인스턴스 생성 완료');
     const response = await ai.models.generateContent({
       model: MODEL_NAME,
       contents: `:: Role Definition ::
@@ -365,13 +373,17 @@ ${script.substring(0, 5000)}
       }
     });
 
+    console.log('API 응답 받음:', response);
     if (response.text) {
+      console.log('응답 텍스트 파싱 시도...');
       const parsed = JSON.parse(response.text);
+      console.log('파싱 완료:', parsed);
       return parsed as ScriptAnalysis;
     }
     throw new Error("분석 결과를 파싱할 수 없습니다.");
   } catch (error: any) {
     console.error("Gemini Analysis Error:", error);
+    console.error("에러 상세:", error.message, error.stack);
     const errorMsg = error?.message || error?.toString() || "알 수 없는 오류";
     throw new Error(`대본 분석 중 오류가 발생했습니다: ${errorMsg}\n\nAPI 키를 확인하거나 잠시 후 다시 시도해주세요.`);
   }
