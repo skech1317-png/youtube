@@ -183,9 +183,18 @@ const App: React.FC = () => {
         generatedNewScript: improvedScript 
       }));
 
-    } catch (e) {
+    } catch (e: any) {
       console.error('자동 분석 및 개선 실패:', e);
-      // 자동 개선 실패는 치명적이지 않으므로 조용히 처리
+      const errorMsg = e?.message || '알 수 없는 오류';
+      alert(
+        '⚠️ 자동 개선 중 오류 발생\n\n' +
+        '대본은 정상적으로 생성되었지만,\n' +
+        '자동 분석 및 개선 단계에서 문제가 발생했습니다.\n\n' +
+        `오류: ${errorMsg}\n\n` +
+        '💡 수동으로 "PD분석" 버튼을 클릭하여 다시 시도할 수 있습니다.'
+      );
+    } finally {
+      setLoading('IDLE');
     }
   };
 
@@ -228,8 +237,13 @@ const App: React.FC = () => {
       // 대본 생성 완료 후 자동으로 제목, 썸네일, 등장인물 이미지 프롬프트 생성
       await generateAllMetadata(script);
 
-      // 자동으로 PD 분석 및 개선 실행
-      await autoAnalyzeAndImprove(script, topic);
+      // 자동으로 PD 분석 및 개선 실행 (실패해도 대본 생성은 완료됨)
+      try {
+        await autoAnalyzeAndImprove(script, topic);
+      } catch (autoImproveError: any) {
+        console.error('자동 개선 호출 실패:', autoImproveError);
+        // 자동 개선 실패는 치명적이지 않으므로 계속 진행
+      }
     } catch (e: any) {
       const errorMsg = e?.message || "대본 생성 실패: 잠시 후 다시 시도해주세요.";
       setErrorMsg(errorMsg);
@@ -242,24 +256,41 @@ const App: React.FC = () => {
 
   // 대본의 메타데이터 자동 생성 (제목, 썸네일, 등장인물)
   const generateAllMetadata = async (script: string) => {
+    const errors: string[] = [];
+    
+    // 1. 제목 생성
     try {
-      // 1. 제목 생성
       setLoading('TITLE');
       const title = await generateVideoTitle(script, session.apiKey);
       setSession(prev => ({ ...prev, videoTitle: title }));
+    } catch (e: any) {
+      console.error('제목 생성 실패:', e);
+      errors.push('제목 생성');
+    }
 
-      // 2. 썸네일 프롬프트 생성 (제목 반영)
+    // 2. 썸네일 프롬프트 생성 (제목 반영)
+    try {
       setLoading('THUMBNAILS');
-      const thumbnails = await generateThumbnails(script, title, session.apiKey);
+      const thumbnails = await generateThumbnails(script, session.videoTitle || '제목 없음', session.apiKey);
       setSession(prev => ({ ...prev, thumbnails }));
+    } catch (e: any) {
+      console.error('썸네일 생성 실패:', e);
+      errors.push('썸네일');
+    }
 
-      // 3. 등장인물 이미지 프롬프트 생성
+    // 3. 등장인물 이미지 프롬프트 생성
+    try {
       setLoading('IMAGE_PROMPTS');
       const imagePrompts = await generateImagePrompts(script, session.apiKey);
       setSession(prev => ({ ...prev, imagePrompts }));
-    } catch (e) {
-      console.error('메타데이터 생성 실패:', e);
-      // 메타데이터 생성 실패는 치명적이지 않으므로 에러 메시지만 표시
+    } catch (e: any) {
+      console.error('이미지 프롬프트 생성 실패:', e);
+      errors.push('등장인물 이미지');
+    }
+
+    // 에러가 있었다면 알림
+    if (errors.length > 0) {
+      alert(`⚠️ 일부 메타데이터 생성 실패\n\n실패한 항목: ${errors.join(', ')}\n\n대본은 정상적으로 생성되었습니다.`);
     }
   };
 
