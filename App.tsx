@@ -161,8 +161,8 @@ const App: React.FC = () => {
       // 대본 생성 완료 후 자동으로 제목, 썸네일, 등장인물 이미지 프롬프트 생성
       await generateAllMetadata(script);
 
-      // 자동으로 PD 분석 실행
-      await autoAnalyzeAndImprove(script, topic);
+      // 자동으로 PD 분석만 실행 (개선은 사용자가 버튼 클릭 시)
+      await autoAnalyzeOnly(script);
     } catch (e: any) {
       const errorMsg = e?.message || "대본 생성 실패: 잠시 후 다시 시도해주세요.";
       setErrorMsg(errorMsg);
@@ -196,7 +196,28 @@ const App: React.FC = () => {
     }
   };
 
-  // 자동 분석 및 개선 함수
+  // 자동 분석 함수 (개선은 하지 않음)
+  const autoAnalyzeOnly = async (script: string) => {
+    try {
+      // PD 분석만 실행
+      setLoading('ANALYZING');
+      const analysis = await analyzeScriptAsPD(script, session.apiKey);
+      setSession(prev => ({ ...prev, analysis }));
+      
+      // 분석 완료 알림
+      alert(
+        '✅ PD 분석 완료!\n\n' +
+        `📊 후킹 점수: ${analysis.hookingScore}/10\n` +
+        `⚠️ 발견된 문제: 논리적 허점 ${analysis.logicalFlaws.length}개, 지루함 경보 ${analysis.boringParts.length}개\n\n` +
+        '💡 아래의 "🔧 자동 개선" 버튼을 클릭하면 PD 피드백을 반영한 개선 대본을 생성합니다.'
+      );
+    } catch (e) {
+      console.error('자동 분석 실패:', e);
+      // 자동 분석 실패는 치명적이지 않으므로 조용히 처리
+    }
+  };
+
+  // 자동 분석 및 개선 함수 (원본 대본용 - 즉시 개선)
   const autoAnalyzeAndImprove = async (script: string, topic: string) => {
     try {
       // 1. PD 분석 자동 실행
