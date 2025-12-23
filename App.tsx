@@ -234,11 +234,11 @@ const App: React.FC = () => {
       // 히스토리에 자동 추가
       saveToHistory(topic, script, false);
 
-      // 대본 생성 완료 후 자동으로 제목, 썸네일, 등장인물 이미지 프롬프트 생성
+      // 대본 생성 완료 후 자동으로 제목 생성
       await generateAllMetadata(script);
 
       // 메타데이터 생성 후 추가 대기 (API 속도 제한 회피)
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
       // 자동으로 PD 분석 및 개선 실행 (속도 제어 포함)
       try {
@@ -257,47 +257,15 @@ const App: React.FC = () => {
     }
   };
 
-  // 대본의 메타데이터 자동 생성 (제목, 썸네일, 등장인물)
+  // 대본의 메타데이터 자동 생성 (제목만)
   const generateAllMetadata = async (script: string) => {
-    const errors: string[] = [];
-    
-    // 1. 제목 생성
     try {
       setLoading('TITLE');
       const title = await generateVideoTitle(script, session.apiKey);
       setSession(prev => ({ ...prev, videoTitle: title }));
-      // API 호출 간격 조절 (429 에러 방지)
-      await new Promise(resolve => setTimeout(resolve, 2000));
     } catch (e: any) {
       console.error('제목 생성 실패:', e);
-      errors.push('제목 생성');
-    }
-
-    // 2. 썸네일 프롬프트 생성 (제목 반영)
-    try {
-      setLoading('THUMBNAILS');
-      const thumbnails = await generateThumbnails(script, session.videoTitle || '제목 없음', session.apiKey);
-      setSession(prev => ({ ...prev, thumbnails }));
-      // API 호출 간격 조절 (429 에러 방지)
-      await new Promise(resolve => setTimeout(resolve, 2000));
-    } catch (e: any) {
-      console.error('썸네일 생성 실패:', e);
-      errors.push('썸네일');
-    }
-
-    // 3. 등장인물 이미지 프롬프트 생성
-    try {
-      setLoading('IMAGE_PROMPTS');
-      const imagePrompts = await generateImagePrompts(script, session.apiKey);
-      setSession(prev => ({ ...prev, imagePrompts }));
-    } catch (e: any) {
-      console.error('이미지 프롬프트 생성 실패:', e);
-      errors.push('등장인물 이미지');
-    }
-
-    // 에러가 있었다면 알림
-    if (errors.length > 0) {
-      alert(`⚠️ 일부 메타데이터 생성 실패\n\n실패한 항목: ${errors.join(', ')}\n\n대본은 정상적으로 생성되었습니다.`);
+      alert(`⚠️ 제목 생성 실패\n\n대본은 정상적으로 생성되었습니다.`);
     }
   };
 
