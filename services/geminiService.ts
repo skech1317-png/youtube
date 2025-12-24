@@ -636,13 +636,28 @@ ${scriptSummary}
   }
 };
 
-// 10. PD 분석 결과 기반 대본 개선 (강화된 버전)
+// 10. PD 분석 결과 기반 대본 개선 (안정화 버전)
 export const improveScriptWithAnalysis = async (
   originalScript: string,
   analysis: ScriptAnalysis,
   apiKey: string
 ): Promise<string> => {
   try {
+    // API 키 검증
+    if (!apiKey || !apiKey.trim()) {
+      throw new Error("API 키가 필요합니다.");
+    }
+
+    // 대본 검증
+    if (!originalScript || originalScript.length < 500) {
+      throw new Error("개선할 대본이 너무 짧거나 없습니다.");
+    }
+
+    // 분석 결과 검증
+    if (!analysis) {
+      throw new Error("분석 결과가 없습니다. PD 분석을 먼저 실행해주세요.");
+    }
+
     const ai = getAI(apiKey);
     
     // 논리적 허점을 상세하게 정리
@@ -653,7 +668,7 @@ export const improveScriptWithAnalysis = async (
           `문제점: ${f.issue}\n` +
           `수정안: ${f.suggestion}\n`
         ).join('\n')
-      : '발견되지 않음';
+      : '논리적 문제 발견되지 않음 - 그대로 유지';
     
     // 지루함 경보 구간 정리
     const boringSummary = analysis.boringParts.length > 0
@@ -661,22 +676,23 @@ export const improveScriptWithAnalysis = async (
           `[이탈위험 ${i + 1}] "${b.original}"\n` +
           `이유: ${b.reason}\n`
         ).join('\n')
-      : '발견되지 않음';
+      : '지루한 구간 발견되지 않음 - 템포 양호';
 
     const response = await ai.models.generateContent({
       model: MODEL_NAME,
-      contents: `:: Role ::
-너는 100만 구독자 유튜브 채널의 메인 시나리오 작가야.
-PD의 냉정한 피드백을 100% 반영하여 대본을 완벽하게 개선해야 한다.
+      contents: `당신은 100만 구독자 유튜브 채널의 메인 시나리오 작가입니다.
+PD의 냉정한 피드백을 100% 반영하여 대본을 완벽하게 개선해야 합니다.
 
-:: 원본 대본 ::
-"""
-${originalScript}
-"""
+━━━━━━━━━━━━━━━━━━━━━━
+📜 원본 대본
+━━━━━━━━━━━━━━━━━━━━━━
+${originalScript.substring(0, 8000)}
 
-:: PD 분석 결과 (반드시 반영) ::
+━━━━━━━━━━━━━━━━━━━━━━
+📊 PD 분석 결과 (반드시 반영)
+━━━━━━━━━━━━━━━━━━━━━━
 
-📊 후킹 점수: ${analysis.hookingScore}/10
+🎯 후킹 점수: ${analysis.hookingScore}/10
 💬 PD 코멘트: ${analysis.hookingComment}
 
 ⚠️ 논리적 허점 (${analysis.logicalFlaws.length}개):
@@ -685,108 +701,121 @@ ${flawsSummary}
 😴 지루함 경보 구간 (${analysis.boringParts.length}개):
 ${boringSummary}
 
-💬 PD 총평:
+💡 PD 총평:
 ${analysis.overallComment}
 
 🚨 최우선 액션 플랜:
 ${analysis.actionPlan}
 
-:: Task - 대본 완전 재작성 ::
+━━━━━━━━━━━━━━━━━━━━━━
+✍️ 개선 미션
+━━━━━━━━━━━━━━━━━━━━━━
 
-위 PD 분석을 **100% 반영**하여 대본을 완전히 재작성해줘.
+위 PD 분석을 100% 반영하여 대본을 완전히 재작성하세요.
 
-## 필수 개선 사항:
+### 필수 개선 사항:
 
-1. **후킹 강화** (목표: ${Math.min(10, analysis.hookingScore + 3)}점 이상)
-   - 첫 3초: 충격적인 질문이나 사건으로 시작
-   - 초반 30초: 왜 봐야 하는지 명확히 제시
-   - 클릭 후 이탈 방지 장치 추가
-   ${analysis.hookingScore < 7 ? '\n   ⚠️ **후킹 점수가 낮습니다! 도입부를 완전히 새로 작성하세요!**' : ''}
+1. **후킹 강화** (목표: ${Math.min(10, analysis.hookingScore + 2)}점 이상)
+   - 첫 10초를 가장 극적이고 충격적으로
+   - "왜 이 영상을 봐야 하는가?" 명확히 제시
+   ${analysis.hookingScore < 7 ? '   🚨 후킹 점수 낮음! 도입부 전면 재작성 필수!' : ''}
 
-2. **논리적 허점 100% 보완**
-   - 위에 나열된 모든 허점을 PD 수정안대로 정확히 수정
-   - 인과관계 명확히, 비약 제거
-   - 근거와 설득력 강화
-   ${analysis.logicalFlaws.length > 0 ? '\n   🚨 **각 허점을 찾아 PD 수정안을 그대로 적용하세요!**' : ''}
+2. **논리적 허점 완벽 보완**
+   ${analysis.logicalFlaws.length > 0 ? `   - 위의 ${analysis.logicalFlaws.length}개 허점을 PD 수정안대로 정확히 수정
+   - 인과관계 명확화, 비약 제거
+   🚨 각 허점 위치를 찾아 반드시 수정!` : '   - 논리는 양호, 현 수준 유지'}
 
-3. **템포 조절 - 지루함 제거**
-   - 지루함 경보 구간을 간결하게 압축 또는 삭제
-   - 불필요한 서론/설명 삭제
-   - 짧고 강렬한 문장으로 변경
-   ${analysis.boringParts.length > 0 ? '\n   ⚠️ **지루한 부분은 과감히 삭제하거나 극적으로 재작성!**' : ''}
+3. **템포 개선 - 지루함 제거**
+   ${analysis.boringParts.length > 0 ? `   - 지루함 경보 ${analysis.boringParts.length}개 구간 전면 개선
+   - 간결하게 압축 또는 극적으로 재구성
+   - 불필요한 설명 삭제
+   🚨 지루한 부분은 과감히 삭제!` : '   - 템포는 양호, 현 수준 유지'}
 
-4. **댄 하몬 스토리 서클 8단계 적용**
-   - YOU → NEED → GO → SEARCH → FIND → TAKE → RETURN → CHANGE
-   - 명확한 주인공의 변화와 성장
-   - 5-6단계에 강력한 반전 배치
-   - 8단계에서 감동적 결말
+4. **댄 하몬 스토리 서클 강화**
+   1) YOU: 평범한 일상
+   2) NEED: 문제/욕구 발생
+   3) GO: 새로운 세계로
+   4) SEARCH: 시련과 탐색
+   5) FIND: 결정적 발견 (강력한 반전!)
+   6) TAKE: 대가를 치르고 획득
+   7) RETURN: 원래 세계로 귀환
+   8) CHANGE: 성장한 모습
 
 5. **조선시대 야담 스타일 유지**
-   - 생생한 일화, 구전 화법
-   - 통쾌한 반전과 교훈
+   - 생동감 있는 구전 화법
    - 자연스러운 이름 표현 ("막순이가", "철수는")
+   - 통쾌한 반전과 교훈
 
 6. **PD 액션 플랜 최우선 실행**
    "${analysis.actionPlan}"
-   → 이것을 제일 먼저 해결하세요!
+   ☝️ 이것을 제일 먼저 해결!
 
-## 재작성 원칙:
-- 원본의 주제와 핵심 메시지는 유지
-- PD 지적 사항은 **100% 반영** (타협 없음)
-- 개선된 부분이 명확히 드러나도록
-- 전체 흐름과 몰입도 극대화
-- 길이는 유사하게 유지 (±20%)
+### 재작성 원칙:
+✅ 원본의 주제와 핵심 메시지 유지
+✅ PD 지적 사항 100% 반영 (타협 없음)
+✅ 전체 흐름과 몰입도 극대화
+✅ 길이: 6,000-10,000자 (원본과 유사)
 
-## 출력 형식:
-개선된 완전한 대본만 출력하세요. 설명이나 주석 없이 대본 자체만!
-
-5. **길이 유지**
-   - 8,000-10,000자 (원본과 유사한 길이)
-
-## 중요 지침:
-- PD가 지적한 문제를 **모두** 해결할 것
-- 단순 수정이 아닌 **완전히 재작성**
-- 개선 전보다 **명백히 나아진** 대본이어야 함
-
-개선된 대본만 출력해줘.`,
+### 출력 형식:
+⚠️ 중요: 개선된 완전한 대본만 출력하세요.
+설명, 주석, 분석 내용 등은 절대 포함하지 마세요.
+대본 자체만 순수하게 출력!`,
       config: {
-        temperature: 0.8,
+        temperature: 0.85,
         topP: 0.95,
-        maxOutputTokens: 8192
+        maxOutputTokens: 8192,
+        stopSequences: []
       }
     });
 
-    if (response.text) {
-      const improved = response.text.trim();
-      if (improved.length < 3000) {
-        throw new Error("개선된 대본이 너무 짧습니다. 다시 시도해주세요.");
-      }
-      return improved;
+    // 응답 검증
+    if (!response || !response.text) {
+      throw new Error("AI로부터 응답을 받지 못했습니다. 네트워크를 확인하거나 잠시 후 다시 시도해주세요.");
     }
-    throw new Error("대본 개선 결과를 받을 수 없습니다.");
+
+    const improved = response.text.trim();
+    
+    // 결과 검증
+    if (!improved) {
+      throw new Error("빈 응답을 받았습니다. 다시 시도해주세요.");
+    }
+    
+    if (improved.length < 2000) {
+      throw new Error(`개선된 대본이 너무 짧습니다 (${improved.length}자). 최소 2000자 이상 필요합니다.`);
+    }
+
+    // 메타 텍스트 제거 (AI가 설명을 추가한 경우)
+    const cleanedScript = improved
+      .replace(/^##.*$/gm, '') // 제목 제거
+      .replace(/^\*\*.*\*\*$/gm, '') // 볼드 제목 제거
+      .replace(/^===+$/gm, '') // 구분선 제거
+      .replace(/^---+$/gm, '') // 구분선 제거
+      .replace(/^\[.*개선.*\].*$/gm, '') // [개선됨] 같은 태그 제거
+      .replace(/^\(.*수정.*\).*$/gm, '') // (수정) 같은 주석 제거
+      .trim();
+
+    if (cleanedScript.length < 2000) {
+      throw new Error("정제 후 대본이 너무 짧습니다. 다시 시도해주세요.");
+    }
+
+    return cleanedScript;
+
   } catch (error) {
     console.error("Script Improvement Error:", error);
-    throw new Error("대본 개선 중 오류가 발생했습니다.");
-  }
-};
-
-개선된 대본만 출력해.`,
-      config: {
-        temperature: 0.8,
-        topP: 0.95
+    
+    // 에러 메시지 명확화
+    if (error instanceof Error) {
+      if (error.message.includes("API")) {
+        throw new Error(`API 오류: ${error.message}`);
+      } else if (error.message.includes("네트워크")) {
+        throw new Error("네트워크 연결을 확인해주세요.");
+      } else if (error.message.includes("너무 짧")) {
+        throw error; // 이미 명확한 메시지
+      } else {
+        throw new Error(`대본 개선 실패: ${error.message}`);
       }
-    });
-
-    if (response.text) {
-      const improved = response.text.trim();
-      if (improved.length < 3000) {
-        throw new Error("개선된 대본이 너무 짧습니다.");
-      }
-      return improved;
     }
-    throw new Error("대본 개선 결과를 받을 수 없습니다.");
-  } catch (error) {
-    console.error("Script Improvement Error:", error);
-    throw new Error("대본 개선 중 오류가 발생했습니다.");
+    
+    throw new Error("알 수 없는 오류가 발생했습니다. 다시 시도해주세요.");
   }
 };

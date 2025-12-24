@@ -249,11 +249,22 @@ const App: React.FC = () => {
     setErrorMsg(null);
 
     try {
+      console.log('🔄 대본 개선 시작...');
+      console.log('대본 길이:', session.generatedNewScript.length);
+      console.log('분석 결과:', session.analysis);
+
       const improvedScript = await improveScriptWithAnalysis(
         session.generatedNewScript,
         session.analysis,
         session.apiKey
       );
+      
+      console.log('✅ 개선된 대본 길이:', improvedScript.length);
+
+      // 유효성 검증
+      if (!improvedScript || improvedScript.length < 1000) {
+        throw new Error('개선된 대본이 너무 짧습니다.');
+      }
       
       // 개선 전 대본 백업
       const beforeImprovement = session.generatedNewScript;
@@ -267,6 +278,7 @@ const App: React.FC = () => {
         videoTitle: null,
         thumbnails: [],
         imagePrompts: [],
+        videoDescription: null,
       }));
 
       // 개선된 대본을 히스토리에 추가
@@ -274,18 +286,53 @@ const App: React.FC = () => {
         saveToHistory(session.selectedTopic + ' (PD개선ver)', improvedScript, true);
       }
 
-      // 자동으로 메타데이터 재생성
-      await generateAllMetadata(improvedScript);
+      setLoading('IDLE');
 
       alert(
         '✅ 대본 개선 완료!\n\n' +
+        `📊 개선 전: ${beforeImprovement.length}자\n` +
+        `📊 개선 후: ${improvedScript.length}자\n\n` +
         '🎯 PD 피드백이 모두 반영되었습니다.\n' +
-        '📝 제목, 썸네일, 등장인물도 새로 생성되었습니다.\n\n' +
+        '📝 제목/썸네일/등장인물 버튼을 눌러 다시 생성하세요.\n\n' +
         '💡 개선된 대본을 다시 PD 분석해보세요!'
       );
+
+      // 자동으로 메타데이터 재생성 (선택 사항)
+      const autoGenerate = window.confirm(
+        '📝 제목, 썸네일, 등장인물도 자동으로 다시 생성할까요?\n\n' +
+        '(취소를 누르면 원하는 것만 개별적으로 생성할 수 있습니다)'
+      );
+
+      if (autoGenerate) {
+        setLoading('GENERATING_METADATA');
+        try {
+          await generateAllMetadata(improvedScript);
+          alert('✅ 메타데이터 재생성 완료!');
+        } catch (metaError) {
+          console.error('메타데이터 생성 오류:', metaError);
+          alert('⚠️ 메타데이터 자동 생성에 실패했습니다.\n개별 버튼으로 생성해주세요.');
+        }
+      }
+
     } catch (e) {
-      setErrorMsg("대본 개선 실패: 잠시 후 다시 시도해주세요.");
-      console.error('대본 개선 에러:', e);
+      console.error('❌ 대본 개선 에러:', e);
+      
+      // 에러 메시지 상세화
+      let errorMessage = "대본 개선 중 오류가 발생했습니다.";
+      if (e instanceof Error) {
+        errorMessage = e.message;
+      }
+      
+      setErrorMsg(errorMessage);
+      alert(
+        `❌ 대본 개선 실패\n\n` +
+        `오류: ${errorMessage}\n\n` +
+        `해결 방법:\n` +
+        `1. API 키가 유효한지 확인\n` +
+        `2. 인터넷 연결 확인\n` +
+        `3. 잠시 후 다시 시도\n` +
+        `4. 대본이 너무 짧지 않은지 확인`
+      );
     } finally {
       setLoading('IDLE');
     }
