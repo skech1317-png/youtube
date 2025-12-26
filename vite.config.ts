@@ -5,7 +5,7 @@ import react from '@vitejs/plugin-react';
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
     return {
-      base: '/', // 로컬 루트 경로
+      base: '/youtube/', // GitHub Pages용 서브경로
       server: {
         port: 3000,
         host: '0.0.0.0',
