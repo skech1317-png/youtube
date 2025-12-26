@@ -1624,6 +1624,11 @@ const App: React.FC = () => {
                         <p className="font-bold text-red-600">{thumbnail.textOverlay}</p>
                       </div>
                     )}
+                    {/* 16:9 비율 프리뷰 영역 */}
+                    <div className="w-full aspect-[16/9] bg-gray-200 rounded flex items-center justify-center mb-2 overflow-hidden">
+                      {/* 실제 이미지가 있다면 <img src=... className="w-full h-full object-cover" />로 대체 */}
+                      <span className="text-gray-400 text-xs">16:9 썸네일 미리보기</span>
+                    </div>
                     <div className="bg-black text-green-400 p-3 rounded font-mono text-xs overflow-x-auto">
                       <div className="flex justify-between items-center mb-1">
                         <span className="text-gray-400">Prompt:</span>
@@ -1678,6 +1683,11 @@ const App: React.FC = () => {
                         <p className="text-xs text-gray-500 mb-1">대본 속 등장:</p>
                         <p className="text-sm text-gray-700 italic">"{prompt.sentence}"</p>
                       </div>
+                    </div>
+                    {/* 16:9 비율 프리뷰 영역 */}
+                    <div className="w-full aspect-[16/9] bg-gray-200 rounded flex items-center justify-center mb-2 overflow-hidden">
+                      {/* 실제 이미지가 있다면 <img src=... className="w-full h-full object-cover" />로 대체 */}
+                      <span className="text-gray-400 text-xs">16:9 인물 미리보기</span>
                     </div>
                     <div className="bg-black text-green-400 p-3 rounded font-mono text-xs overflow-x-auto">
                       <div className="flex justify-between items-center mb-1">
