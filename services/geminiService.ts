@@ -1,10 +1,16 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { ScriptAnalysis, ShortsScript } from "../types";
+import { ScriptAnalysis, ShortsScript, DetailedScriptAnalysis, ScriptRevision } from "../types";
 
-const MODEL_NAME = 'gemini-1.5-flash';
+const MODEL_NAME = 'gemini-2.0-flash-exp';
 
 // API 키를 받아서 AI 인스턴스 생성하는 헬퍼 함수
-const getAI = (apiKey: string) => new GoogleGenAI({ apiKey });
+const getAI = (apiKey: string) => {
+  console.log('getAI 호출됨, API 키 길이:', apiKey?.length);
+  if (!apiKey || apiKey.trim() === '') {
+    throw new Error('API 키가 제공되지 않았습니다.');
+  }
+  return new GoogleGenAI({ apiKey });
+};
 
 // 1. 주제 추천 함수
 export const suggestTopicsFromScript = async (script: string, apiKey: string): Promise<string[]> => {
@@ -48,7 +54,24 @@ export const suggestTopicsFromScript = async (script: string, apiKey: string): P
     console.error("Gemini Topic Error 상세:", error);
     console.error("에러 메시지:", error.message);
     console.error("에러 스택:", error.stack);
-    throw new Error(`주제 추천 중 오류: ${error.message || '알 수 없는 오류'}`);
+    
+    // 구체적인 에러 메시지 제공
+    let errorMessage = '알 수 없는 오류';
+    if (error.message) {
+      if (error.message.includes('API key')) {
+        errorMessage = 'API 키가 유효하지 않습니다. 올바른 Gemini API 키를 입력했는지 확인하세요.';
+      } else if (error.message.includes('404') || error.message.includes('not found')) {
+        errorMessage = '모델을 찾을 수 없습니다. gemini-1.5-flash 모델에 접근 권한이 있는지 확인하세요.';
+      } else if (error.message.includes('429') || error.message.includes('quota') || error.message.includes('limit')) {
+        errorMessage = 'API 사용량 한도를 초과했습니다 (429 에러).\n\n해결 방법:\n1. 5-10분 후 다시 시도\n2. 새 API 키 발급 (https://aistudio.google.com/apikey)\n3. 무료 티어는 분당 15회 제한이 있습니다.';
+      } else if (error.message.includes('network') || error.message.includes('fetch')) {
+        errorMessage = '네트워크 연결 오류입니다. 인터넷 연결을 확인하세요.';
+      } else {
+        errorMessage = error.message;
+      }
+    }
+    
+    throw new Error(`주제 추천 실패: ${errorMessage}`);
   }
 };
 
@@ -103,9 +126,10 @@ ${historyPrompt}
     });
 
     return response.text || "대본을 생성하지 못했습니다.";
-  } catch (error) {
+  } catch (error: any) {
     console.error("Gemini Script Error:", error);
-    throw new Error("대본 작성 중 오류가 발생했습니다.");
+    const errorMsg = error?.message || "알 수 없는 오류";
+    throw new Error(`대본 작성 실패: ${errorMsg}. API 키와 네트워크 연결을 확인하세요.`);
   }
 };
 
@@ -257,16 +281,19 @@ ${targetLength}
     });
 
     return response.text || "야담 대본을 생성하지 못했습니다.";
-  } catch (error) {
+  } catch (error: any) {
     console.error("Gemini Yadam Error:", error);
-    throw new Error("야담 대본 작성 중 오류가 발생했습니다.");
+    const errorMsg = error?.message || "알 수 없는 오류";
+    throw new Error(`야담 대본 작성 실패: ${errorMsg}. API 키가 올바른지 확인하세요.`);
   }
 };
 
 // 4. PD 페르소나 - 대본 분석 (냉철하고 비판적)
 export const analyzeScriptAsPD = async (script: string, apiKey: string): Promise<ScriptAnalysis> => {
   try {
+    console.log('PD 분석 시작...');
     const ai = getAI(apiKey);
+    console.log('AI 인스턴스 생성 완료');
     const response = await ai.models.generateContent({
       model: MODEL_NAME,
       contents: `:: Role Definition ::
@@ -305,7 +332,11 @@ ${script.substring(0, 5000)}
 - 지루함 경보: 이탈 위험 구간 → 왜 지루한지
 - 액션 플랜: 이 영상을 살리기 위해 당장 고쳐야 할 1가지 (우선순위 최상위)
 
-**중요**: 칭찬보다는 개선점에 집중하라. 100만 구독자 채널 기준에서 평가하라.`,
+**중요**: 
+- 칭찬보다는 개선점에 집중하라
+- 100만 구독자 채널 기준에서 평가하라
+- 수정 제안은 구체적인 문장으로 제시하라
+- 약점이 발견된 문장 원문을 정확히 인용하라`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -342,13 +373,17 @@ ${script.substring(0, 5000)}
       }
     });
 
+    console.log('API 응답 받음:', response);
     if (response.text) {
+      console.log('응답 텍스트 파싱 시도...');
       const parsed = JSON.parse(response.text);
+      console.log('파싱 완료:', parsed);
       return parsed as ScriptAnalysis;
     }
     throw new Error("분석 결과를 파싱할 수 없습니다.");
   } catch (error: any) {
     console.error("Gemini Analysis Error:", error);
+    console.error("에러 상세:", error.message, error.stack);
     const errorMsg = error?.message || error?.toString() || "알 수 없는 오류";
     throw new Error(`대본 분석 중 오류가 발생했습니다: ${errorMsg}\n\nAPI 키를 확인하거나 잠시 후 다시 시도해주세요.`);
   }
@@ -819,3 +854,317 @@ ${analysis.actionPlan}
     throw new Error("알 수 없는 오류가 발생했습니다. 다시 시도해주세요.");
   }
 };
+
+// 대본 상세 분석 함수
+export const analyzeScriptDetailed = async (
+  script: string,
+  apiKey: string
+): Promise<DetailedScriptAnalysis> => {
+  try {
+    const ai = getAI(apiKey);
+    const trimmedScript = script.length > 8000 
+      ? script.substring(0, 8000) + '...\n(이하 생략)'
+      : script;
+
+    const response = await ai.models.generateContent({
+      model: MODEL_NAME,
+      contents: `너는 전문 대본 분석가야. 아래 대본을 상세히 분석하고 개선점을 제시해줘.
+
+대본:
+"""
+${trimmedScript}
+"""
+
+다음 항목들을 상세히 분석해줘:
+
+1. 구조 분석 (Structure Analysis):
+- 인트로 유무와 품질
+- 본론의 전개 방식
+- 결론/마무리 유무와 효과성
+- 전체 구조 점수 (0-10)
+- 구조 개선 피드백
+
+2. 흐름 분석 (Flow Analysis):
+- 전개 속도 평가 (빠름/적절/느림)
+- 장면 전환의 자연스러움
+- 흐름 점수 (0-10)
+- 개선 제안 (3가지)
+
+3. 콘텐츠 품질 (Content Quality):
+- 명확성 점수 (0-10): 내용이 명확한가?
+- 흥미도 점수 (0-10): 재미있는가?
+- 독창성 점수 (0-10): 독특한가?
+- 강점 3가지
+- 약점 3가지
+
+4. 기술적 문제점 (Technical Issues):
+- 구체적인 문제점들 (라인 번호 포함 가능)
+- 각 문제의 심각도 (high/medium/low)
+- 수정 제안
+
+5. 종합 평가:
+- 전체적인 평가
+- 개선 우선순위 (1-3개)
+
+JSON 형식으로 응답해줘.`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            structureAnalysis: {
+              type: Type.OBJECT,
+              properties: {
+                hasIntro: { type: Type.BOOLEAN },
+                hasBody: { type: Type.BOOLEAN },
+                hasConclusion: { type: Type.BOOLEAN },
+                structureScore: { type: Type.NUMBER },
+                structureFeedback: { type: Type.STRING }
+              },
+              required: ["hasIntro", "hasBody", "hasConclusion", "structureScore", "structureFeedback"]
+            },
+            flowAnalysis: {
+              type: Type.OBJECT,
+              properties: {
+                flowScore: { type: Type.NUMBER },
+                pacing: { type: Type.STRING },
+                transitionQuality: { type: Type.STRING },
+                improvements: {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING }
+                }
+              },
+              required: ["flowScore", "pacing", "transitionQuality", "improvements"]
+            },
+            contentQuality: {
+              type: Type.OBJECT,
+              properties: {
+                clarityScore: { type: Type.NUMBER },
+                engagementScore: { type: Type.NUMBER },
+                originalityScore: { type: Type.NUMBER },
+                strengths: {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING }
+                },
+                weaknesses: {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING }
+                }
+              },
+              required: ["clarityScore", "engagementScore", "originalityScore", "strengths", "weaknesses"]
+            },
+            technicalIssues: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  issue: { type: Type.STRING },
+                  severity: { type: Type.STRING },
+                  suggestion: { type: Type.STRING }
+                },
+                required: ["issue", "severity", "suggestion"]
+              }
+            },
+            overallSummary: { type: Type.STRING },
+            improvementPriorities: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING }
+            }
+          },
+          required: [
+            "structureAnalysis",
+            "flowAnalysis",
+            "contentQuality",
+            "technicalIssues",
+            "overallSummary",
+            "improvementPriorities"
+          ]
+        }
+      }
+    });
+
+    if (response.text) {
+      const analysis = JSON.parse(response.text);
+      return analysis as DetailedScriptAnalysis;
+    }
+
+    throw new Error("분석 결과를 받지 못했습니다.");
+  } catch (error: any) {
+    console.error("Detailed Analysis Error:", error);
+    throw new Error(`대본 분석 실패: ${error.message || '알 수 없는 오류'}`);
+  }
+};
+
+// 대본 수정 제안 생성 함수
+export const generateScriptRevision = async (
+  script: string,
+  analysis: DetailedScriptAnalysis | null,
+  apiKey: string
+): Promise<ScriptRevision> => {
+  try {
+    const ai = getAI(apiKey);
+    const trimmedScript = script.length > 8000 
+      ? script.substring(0, 8000) + '...\n(이하 생략)'
+      : script;
+
+    const analysisContext = analysis 
+      ? `\n\n분석 결과를 참고하여 수정하세요:
+- 구조 점수: ${analysis.structureAnalysis.structureScore}/10
+- 흐름 점수: ${analysis.flowAnalysis.flowScore}/10
+- 명확성: ${analysis.contentQuality.clarityScore}/10
+- 흥미도: ${analysis.contentQuality.engagementScore}/10
+- 개선 우선순위: ${analysis.improvementPriorities.join(', ')}
+- 주요 약점: ${analysis.contentQuality.weaknesses.join(', ')}`
+      : '';
+
+    const response = await ai.models.generateContent({
+      model: MODEL_NAME,
+      contents: `너는 전문 대본 수정 전문가야. 아래 대본을 분석 결과를 바탕으로 개선해줘.
+
+원본 대본:
+"""
+${trimmedScript}
+"""
+${analysisContext}
+
+개선 작업:
+1. 구조적 문제 해결 (인트로, 본론, 결론)
+2. 흐름 개선 (장면 전환, 전개 속도)
+3. 내용 강화 (명확성, 흥미도 향상)
+4. 기술적 문제 수정
+
+수정된 대본과 함께 변경 사항을 상세히 설명해줘.
+
+JSON 형식:
+{
+  "original": "원본 대본 (요약)",
+  "revised": "수정된 대본 (전체)",
+  "changes": [
+    {
+      "type": "structure" | "flow" | "content" | "technical",
+      "original": "수정 전 부분",
+      "revised": "수정 후 부분",
+      "reason": "수정 이유"
+    }
+  ],
+  "summary": "전체 수정 요약"
+}`,
+      config: {
+        temperature: 0.7,
+        topP: 0.9,
+        maxOutputTokens: 8192
+      }
+    });
+
+    if (response.text) {
+      // JSON 파싱 시도
+      try {
+        const revision = JSON.parse(response.text);
+        return revision as ScriptRevision;
+      } catch {
+        // JSON 파싱 실패 시 텍스트를 구조화
+        return {
+          original: trimmedScript,
+          revised: response.text,
+          changes: [{
+            type: 'content',
+            original: '전체',
+            revised: '개선됨',
+            reason: '전체적인 품질 향상'
+          }],
+          summary: '대본이 개선되었습니다.'
+        };
+      }
+    }
+
+    throw new Error("수정 제안을 받지 못했습니다.");
+  } catch (error: any) {
+    console.error("Script Revision Error:", error);
+    throw new Error(`대본 수정 실패: ${error.message || '알 수 없는 오류'}`);
+  }
+};
+
+// 외부 분석 텍스트 기반 대본 수정
+export const reviseScriptWithExternalAnalysis = async (
+  script: string,
+  externalAnalysis: string,
+  apiKey: string
+): Promise<ScriptRevision> => {
+  try {
+    const ai = getAI(apiKey);
+    const trimmedScript = script.length > 8000 
+      ? script.substring(0, 8000) + '...\n(이하 생략)'
+      : script;
+
+    const response = await ai.models.generateContent({
+      model: MODEL_NAME,
+      contents: `너는 전문 대본 수정 전문가야. 아래 대본을 외부 분석 내용을 바탕으로 개선해줘.
+
+원본 대본:
+"""
+${trimmedScript}
+"""
+
+외부 분석 내용 (이 내용을 참고하여 수정):
+"""
+${externalAnalysis}
+"""
+
+위 분석 내용이 지적한 모든 문제점을 해결하고, 제안사항을 반영하여 대본을 개선해줘.
+
+개선 작업:
+1. 분석에서 지적된 구조적 문제 해결
+2. 제안된 흐름 개선 사항 반영
+3. 명확성과 흥미도를 높이는 내용 수정
+4. 기술적 문제 해결
+
+수정된 대본과 함께 변경 사항을 상세히 설명해줘.
+
+JSON 형식:
+{
+  "original": "원본 대본 (요약)",
+  "revised": "수정된 대본 (전체)",
+  "changes": [
+    {
+      "type": "structure" | "flow" | "content" | "technical",
+      "original": "수정 전 부분",
+      "revised": "수정 후 부분",
+      "reason": "수정 이유"
+    }
+  ],
+  "summary": "전체 수정 요약"
+}`,
+      config: {
+        temperature: 0.7,
+        topP: 0.9,
+        maxOutputTokens: 8192
+      }
+    });
+
+    if (response.text) {
+      try {
+        const revision = JSON.parse(response.text);
+        return revision as ScriptRevision;
+      } catch {
+        // JSON 파싱 실패 시 텍스트를 구조화
+        return {
+          original: trimmedScript,
+          revised: response.text,
+          changes: [{
+            type: 'content',
+            original: '전체',
+            revised: '개선됨',
+            reason: '외부 분석 기반 전체적인 품질 향상'
+          }],
+          summary: '외부 분석 내용을 반영하여 대본이 개선되었습니다.'
+        };
+      }
+    }
+
+    throw new Error("수정 제안을 받지 못했습니다.");
+  } catch (error: any) {
+    console.error("External Analysis Revision Error:", error);
+    throw new Error(`대본 수정 실패: ${error.message || '알 수 없는 오류'}`);
+  }
+};
+

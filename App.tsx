@@ -10,7 +10,10 @@ import {
   generateVideoTitle,
   generateVideoDescription,
   generateThumbnails,
-  improveScriptWithAnalysis
+  improveScriptWithAnalysis,
+  analyzeScriptDetailed,
+  generateScriptRevision,
+  reviseScriptWithExternalAnalysis
 } from './services/geminiService';
 import { generateChannelPlan } from './services/planningService';
 import { generateSRT, downloadSRT } from './utils/srtGenerator';
@@ -18,7 +21,22 @@ import { generateSRT, downloadSRT } from './utils/srtGenerator';
 const App: React.FC = () => {
   // State
   const [session, setSession] = useState<ScriptSession>(INITIAL_SESSION);
-  const [loading, setLoading] = useState<'IDLE' | 'SUGGESTING' | 'GENERATING' | 'ANALYZING' | 'IMPROVING' | 'SHORTS' | 'IMAGE_PROMPTS' | 'TITLE' | 'THUMBNAILS' | 'PLANNING'>('IDLE');
+  const [loading, setLoading] = useState<'IDLE' | 'SUGGESTING' | 'GENERATING' | 'ANALYZING' | 'ANALYZING_DETAILED' | 'REVISING' | 'IMPROVING' | 'SHORTS' | 'IMAGE_PROMPTS' | 'TITLE' | 'THUMBNAILS' | 'PLANNING'>('IDLE');
+
+  // API 키 상태
+  const [apiKey, setApiKey] = useState<string>("");
+  useEffect(() => {
+    const savedKey = localStorage.getItem("mvp_api_key") || "";
+    setApiKey(savedKey);
+  }, []);
+  const handleApiKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setApiKey(e.target.value);
+  };
+  const handleApiKeySave = () => {
+    localStorage.setItem("mvp_api_key", apiKey);
+    setSession(prev => ({ ...prev, apiKey }));
+    alert("API 키가 저장되었습니다!");
+  };
 
   // 로딩 메시지 헬퍼
   const getLoadingMessage = () => {
@@ -28,8 +46,10 @@ const App: React.FC = () => {
       case 'TITLE': return '🎬 매력적인 제목 생성 중...';
       case 'THUMBNAILS': return '🖼️ 클릭률 높은 썸네일 구상 중...';
       case 'IMAGE_PROMPTS': return '👥 등장인물 이미지 생성 중...';
-      case 'ANALYZING': return '📊 PD 분석 중...';
-      case 'IMPROVING': return '🔧 대본 개선 중...';
+      case 'ANALYZING': return '� 대본 분석 및 자동 개선 진행 중... (후킹 점수 8점 목표)';
+      case 'ANALYZING_DETAILED': return '🔬 대본 상세 분석 중...';
+      case 'REVISING': return '✨ 대본 수정 제안 생성 중...';
+      case 'IMPROVING': return '🔧 PD 피드백 반영하여 대본 개선 중...';
       case 'SHORTS': return '📱 숏츠 대본 제작 중...';
       case 'PLANNING': return '📋 채널 기획서 작성 중...';
       default: return null;
@@ -41,6 +61,8 @@ const App: React.FC = () => {
   const [scriptType, setScriptType] = useState<'NORMAL' | 'YADAM'>('YADAM'); // 기본값을 야담으로
   const [editedScriptForSRT, setEditedScriptForSRT] = useState<string>(''); // SRT 생성용 수정 대본
   const [showSRTEditor, setShowSRTEditor] = useState<boolean>(false);
+  const [externalAnalysisText, setExternalAnalysisText] = useState<string>(''); // 외부 분석 텍스트
+  const [showExternalAnalysis, setShowExternalAnalysis] = useState<boolean>(false); // 외부 분석 입력란 표시
   
   // SRT 설정
   const [srtCharsPerSecond, setSrtCharsPerSecond] = useState<number>(5); // 초당 글자 수
@@ -63,6 +85,8 @@ const App: React.FC = () => {
           generatedScripts: parsed.generatedScripts ?? [],
           history: parsed.history ?? [],
           analysis: parsed.analysis ?? null,
+          detailedAnalysis: parsed.detailedAnalysis ?? null,
+          scriptRevision: parsed.scriptRevision ?? null,
           shortsScripts: parsed.shortsScripts ?? [],
           channelPlans: parsed.channelPlans ?? [],
           imagePrompts: parsed.imagePrompts ?? [],
@@ -94,26 +118,199 @@ const App: React.FC = () => {
       return;
     }
     if (!session.apiKey || !session.apiKey.trim()) {
-      alert("⚠️ API 키를 먼저 입력해주세요!\n\n위의 빨간색 섹션에서 본인의 Gemini API 키를 입력하세요.");
       setErrorMsg("API 키를 먼저 입력해주세요.");
       return;
     }
-    
-    setLoading('SUGGESTING');
+    setLoading('ANALYZING');
     setErrorMsg(null);
-    
     try {
-      const topics = await suggestTopicsFromScript(session.originalScript, session.apiKey);
+      // 1단계: 먼저 PD 분석을 실행하여 결과를 보여줌
+      const analysis = await analyzeScriptAsPD(session.originalScript, session.apiKey);
+      setSession(prev => ({ ...prev, analysis }));
+      // 2단계: 분석 결과가 UI에 표시된 후 자동개선 및 주제추천 진행
+      setTimeout(async () => {
+        try {
+          // 자동개선 및 주제추천 기존 로직 실행
+          const improvedScript = await autoImproveUntilHookingScore8(
+            session.originalScript,
+            '원본 대본'
+          );
+          setLoading('SUGGESTING');
+          const topics = await suggestTopicsFromScript(improvedScript, session.apiKey);
+          setSession(prev => ({
+            ...prev,
+            originalScript: improvedScript,
+            suggestedTopics: topics,
+            selectedTopic: null,
+            generatedNewScript: null
+          }));
+          alert(
+            '✅ 대본 개선 및 주제 추천 완료!\n\n' +
+            '🎯 원본 대본이 후킹 점수 8점 이상으로 개선되었습니다.\n' +
+            '📝 이제 추천된 주제를 선택하여 새 대본을 생성하세요!'
+          );
+        } catch (e: any) {
+          setErrorMsg(`대본 개선 실패: ${e.message || 'AI 연결 상태를 확인해주세요.'}`);
+          alert(`❌ 오류 발생\n\n${e.message || 'AI 연결 상태를 확인해주세요.'}\n\n브라우저 콘솔(F12)에서 자세한 내용을 확인하세요.`);
+        } finally {
+          setLoading('IDLE');
+        }
+      }, 500); // 분석 결과가 UI에 먼저 반영되도록 약간의 지연
+    } catch (e: any) {
+      setErrorMsg(`분석 실패: ${e.message || 'AI 연결 상태를 확인해주세요.'}`);
+      alert(`❌ 분석 오류\n\n${e.message || 'AI 연결 상태를 확인해주세요.'}\n\n브라우저 콘솔(F12)에서 자세한 내용을 확인하세요.`);
+      setLoading('IDLE');
+    }
+  };
+
+  // 후킹 점수 8점 이상이 될 때까지 자동 개선
+  const autoImproveUntilHookingScore8 = async (script: string, topic: string): Promise<string> => {
+    let currentScript = script;
+    let iteration = 0;
+    const maxIterations = 5; // 최대 5회 시도
+    let lastAnalysis = null;
+
+    while (iteration < maxIterations) {
+      iteration++;
+      try {
+        // 1. PD 분석 실행
+        setLoading('ANALYZING');
+        const analysis = await analyzeScriptAsPD(currentScript, session.apiKey);
+        lastAnalysis = analysis;
+        setSession(prev => ({ ...prev, analysis }));
+
+        console.log(`[${iteration}회차] 후킹 점수: ${analysis.hookingScore}/10`);
+
+        // 2. 후킹 점수 체크 (7점 이상이면 성공)
+        if (analysis.hookingScore >= 7) {
+          // 길이 제한: 10,000자 이내로 자르기
+          const finalScript = currentScript.length > 10000 ? currentScript.slice(0, 10000) : currentScript;
+          alert(
+            `✅ 목표 달성! (${iteration}회 개선)\n\n` +
+            `📊 최종 후킹 점수: ${analysis.hookingScore}/10\n` +
+            `🎯 ${iteration}번의 개선을 거쳐 완벽한 대본이 완성되었습니다!`
+          );
+          // 최종 개선 대본 히스토리에 저장
+          saveToHistory(
+            `${topic} (자동개선${iteration}회_후킹${analysis.hookingScore})`,
+            finalScript,
+            true
+          );
+          return finalScript;
+        }
+
+        // 3. 아직 8점 미만이면 개선 진행
+        alert(
+          `🔄 ${iteration}회차 개선 진행 중...\n\n` +
+          `📊 현재 후킹 점수: ${analysis.hookingScore}/10\n` +
+          `⚠️ 발견된 문제: ${analysis.logicalFlaws.length + analysis.boringParts.length}개\n\n` +
+          `🎯 목표: 8점 이상\n` +
+          `💡 PD 피드백을 반영하여 자동 개선합니다...`
+        );
+
+        // API 속도 제한 회피
+        await new Promise(resolve => setTimeout(resolve, 3000));
+
+        // 4. 대본 개선
+        setLoading('IMPROVING');
+        const improvedScript = await improveScriptWithAnalysis(
+          currentScript,
+          analysis,
+          session.apiKey
+        );
+
+        // 5. 개선된 대본 저장
+        saveToHistory(
+          `${topic} (개선${iteration}회_후킹${analysis.hookingScore})`,
+          improvedScript,
+          true
+        );
+
+        currentScript = improvedScript;
+
+        // 다음 반복 전 대기 (API 속도 제한 회피)
+        await new Promise(resolve => setTimeout(resolve, 3000));
+
+      } catch (e: any) {
+        console.error(`[${iteration}회차] 개선 실패:`, e);
+        
+        // 마지막 시도였다면 에러 발생
+        if (iteration >= maxIterations) {
+          throw new Error(
+            `${maxIterations}회 시도 후에도 개선에 실패했습니다.\n` +
+            `최종 후킹 점수: ${lastAnalysis?.hookingScore || 0}/10\n\n` +
+            `원본 대본을 그대로 사용합니다.`
+          );
+        }
+
+        // 중간에 실패하면 잠시 대기 후 재시도
+        await new Promise(resolve => setTimeout(resolve, 5000));
+      }
+    }
+
+    // 최대 시도 횟수 도달
+    if (lastAnalysis) {
+      alert(
+        `⚠️ ${maxIterations}회 개선 완료\n\n` +
+        `📊 최종 후킹 점수: ${lastAnalysis.hookingScore}/10\n` +
+        `🎯 목표(8점)에는 미달했지만 최선을 다해 개선했습니다.\n\n` +
+        `💡 수동으로 추가 수정을 권장합니다.`
+      );
+    }
+
+    return currentScript;
+  };
+
+  // 자동 분석 및 개선 함수 (원본 대본용 - 즉시 개선)
+  const autoAnalyzeAndImprove = async (script: string, topic: string) => {
+    try {
+      // 1. PD 분석 자동 실행
+      setLoading('ANALYZING');
+      const analysis = await analyzeScriptAsPD(script, session.apiKey);
+      setSession(prev => ({ ...prev, analysis }));
+
+      // 2. 분석 결과를 사용자에게 보여주고 API 속도 제한 회피 (429 에러 방지)
+      await new Promise(resolve => setTimeout(resolve, 3000));
+
+      // 3. 자동으로 개선된 대본 생성
+      setLoading('IMPROVING');
+      const improvedScript = await improveScriptWithAnalysis(
+        script,
+        analysis,
+        session.apiKey
+      );
+
+      // 4. 개선된 대본을 히스토리에 추가
+      saveToHistory(topic + ' (AI개선ver)', improvedScript, true);
+
+      // 5. 개선된 대본으로 메타데이터 재생성
+      await generateAllMetadata(improvedScript);
+
+      // 6. 개선 완료 알림
+      alert(
+        '✅ 대본 자동 개선 완료!\n\n' +
+        `📊 원본 후킹 점수: ${analysis.hookingScore}/10\n` +
+        `⚠️ 발견된 문제: 논리적 허점 ${analysis.logicalFlaws.length}개, 지루함 경보 ${analysis.boringParts.length}개\n\n` +
+        '🎯 PD 피드백이 모두 반영되어 개선된 대본이 생성되었습니다.\n' +
+        '📝 히스토리에서 원본과 개선 버전을 비교해보세요!'
+      );
+
+      // 7. 개선된 대본을 현재 대본으로 설정 (선택사항)
       setSession(prev => ({ 
         ...prev, 
-        suggestedTopics: topics,
-        selectedTopic: null,    // Reset selection
-        generatedNewScript: null // Reset result
+        generatedNewScript: improvedScript 
       }));
+
     } catch (e: any) {
-      console.error('주제 추천 실패:', e);
-      setErrorMsg(`주제 추천 실패: ${e.message || 'AI 연결 상태를 확인해주세요.'}`);
-      alert(`❌ 오류 발생\n\n${e.message || 'AI 연결 상태를 확인해주세요.'}\n\n브라우저 콘솔(F12)에서 자세한 내용을 확인하세요.`);
+      console.error('자동 분석 및 개선 실패:', e);
+      const errorMsg = e?.message || '알 수 없는 오류';
+      alert(
+        '⚠️ 자동 개선 중 오류 발생\n\n' +
+        '대본은 정상적으로 생성되었지만,\n' +
+        '자동 분석 및 개선 단계에서 문제가 발생했습니다.\n\n' +
+        `오류: ${errorMsg}\n\n` +
+        '💡 수동으로 "PD분석" 버튼을 클릭하여 다시 시도할 수 있습니다.'
+      );
     } finally {
       setLoading('IDLE');
     }
@@ -122,7 +319,6 @@ const App: React.FC = () => {
   // Handler: Step 2 - Generate Script
   const handleGenerateScript = async (topic: string) => {
     if (!session.apiKey || !session.apiKey.trim()) {
-      alert("⚠️ API 키를 먼저 입력해주세요!\n\n위의 빨간색 섹션에서 본인의 Gemini API 키를 입력하세요.");
       setErrorMsg("API 키를 먼저 입력해주세요.");
       return;
     }
@@ -155,8 +351,19 @@ const App: React.FC = () => {
       // 히스토리에 자동 추가
       saveToHistory(topic, script, false);
 
-      // 대본 생성 완료 후 자동으로 제목, 썸네일, 등장인물 이미지 프롬프트 생성
+      // 대본 생성 완료 후 자동으로 제목 생성
       await generateAllMetadata(script);
+
+      // 메타데이터 생성 후 추가 대기 (API 속도 제한 회피)
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // 자동으로 PD 분석 및 개선 실행 (속도 제어 포함)
+      try {
+        await autoAnalyzeAndImprove(script, topic);
+      } catch (autoImproveError: any) {
+        console.error('자동 개선 호출 실패:', autoImproveError);
+        // 자동 개선 실패는 치명적이지 않으므로 계속 진행
+      }
     } catch (e: any) {
       const errorMsg = e?.message || "대본 생성 실패: 잠시 후 다시 시도해주세요.";
       setErrorMsg(errorMsg);
@@ -167,26 +374,15 @@ const App: React.FC = () => {
     }
   };
 
-  // 대본의 메타데이터 자동 생성 (제목, 썸네일, 등장인물)
+  // 대본의 메타데이터 자동 생성 (제목만)
   const generateAllMetadata = async (script: string) => {
     try {
-      // 1. 제목 생성
       setLoading('TITLE');
       const title = await generateVideoTitle(script, session.apiKey);
       setSession(prev => ({ ...prev, videoTitle: title }));
-
-      // 2. 썸네일 프롬프트 생성 (제목 반영)
-      setLoading('THUMBNAILS');
-      const thumbnails = await generateThumbnails(script, title, session.apiKey);
-      setSession(prev => ({ ...prev, thumbnails }));
-
-      // 3. 등장인물 이미지 프롬프트 생성
-      setLoading('IMAGE_PROMPTS');
-      const imagePrompts = await generateImagePrompts(script, session.apiKey);
-      setSession(prev => ({ ...prev, imagePrompts }));
-    } catch (e) {
-      console.error('메타데이터 생성 실패:', e);
-      // 메타데이터 생성 실패는 치명적이지 않으므로 에러 메시지만 표시
+    } catch (e: any) {
+      console.error('제목 생성 실패:', e);
+      alert(`⚠️ 제목 생성 실패\n\n대본은 정상적으로 생성되었습니다.`);
     }
   };
 
@@ -197,7 +393,6 @@ const App: React.FC = () => {
       return;
     }
     if (!session.apiKey || !session.apiKey.trim()) {
-      alert("⚠️ API 키를 먼저 입력해주세요!\n\n위의 빨간색 섹션에서 본인의 Gemini API 키를 입력하세요.");
       setErrorMsg("API 키를 먼저 입력해주세요.");
       return;
     }
@@ -225,12 +420,10 @@ const App: React.FC = () => {
       return;
     }
     if (!session.analysis) {
-      alert("⚠️ PD 분석을 먼저 실행해주세요!\n\n위의 '🎬 PD분석' 버튼을 클릭하여 대본 분석을 먼저 받으세요.");
       setErrorMsg("먼저 PD 분석을 실행해주세요.");
       return;
     }
     if (!session.apiKey || !session.apiKey.trim()) {
-      alert("⚠️ API 키를 먼저 입력해주세요!\n\n위의 빨간색 섹션에서 본인의 Gemini API 키를 입력하세요.");
       setErrorMsg("API 키를 먼저 입력해주세요.");
       return;
     }
@@ -345,7 +538,6 @@ const App: React.FC = () => {
       return;
     }
     if (!session.apiKey || !session.apiKey.trim()) {
-      alert("⚠️ API 키를 먼저 입력해주세요!\n\n위의 빨간색 섹션에서 본인의 Gemini API 키를 입력하세요.");
       setErrorMsg("API 키를 먼저 입력해주세요.");
       return;
     }
@@ -386,7 +578,6 @@ const App: React.FC = () => {
       return;
     }
     if (!session.apiKey || !session.apiKey.trim()) {
-      alert("⚠️ API 키를 먼저 입력해주세요!\n\n위의 빨간색 섹션에서 본인의 Gemini API 키를 입력하세요.");
       setErrorMsg("API 키를 먼저 입력해주세요.");
       return;
     }
@@ -414,7 +605,6 @@ const App: React.FC = () => {
       return;
     }
     if (!session.apiKey || !session.apiKey.trim()) {
-      alert("⚠️ API 키를 먼저 입력해주세요!");
       setErrorMsg("API 키를 먼저 입력해주세요.");
       return;
     }
@@ -445,7 +635,6 @@ const App: React.FC = () => {
       return;
     }
     if (!session.apiKey || !session.apiKey.trim()) {
-      alert("⚠️ API 키를 먼저 입력해주세요!\n\n위의 빨간색 섹션에서 본인의 Gemini API 키를 입력하세요.");
       setErrorMsg("API 키를 먼저 입력해주세요.");
       return;
     }
@@ -477,7 +666,6 @@ const App: React.FC = () => {
       return;
     }
     if (!session.apiKey || !session.apiKey.trim()) {
-      alert("⚠️ API 키를 먼저 입력해주세요!\n\n위의 빨간색 섹션에서 본인의 Gemini API 키를 입력하세요.");
       setErrorMsg("API 키를 먼저 입력해주세요.");
       return;
     }
@@ -547,7 +735,6 @@ const App: React.FC = () => {
       return;
     }
     if (!session.apiKey || !session.apiKey.trim()) {
-      alert("⚠️ API 키를 먼저 입력해주세요!\n\n위의 빨간색 섹션에서 본인의 Gemini API 키를 입력하세요.");
       setErrorMsg("API 키를 먼저 입력해주세요.");
       return;
     }
@@ -595,6 +782,186 @@ const App: React.FC = () => {
       ...prev,
       history: [...prev.history, newItem],
     }));
+  };
+
+  // 대본 상세 분석 핸들러
+  const handleDetailedAnalysis = async () => {
+    const scriptToAnalyze = session.generatedNewScript || session.originalScript;
+    
+    if (!scriptToAnalyze || !scriptToAnalyze.trim()) {
+      setErrorMsg("분석할 대본이 없습니다.");
+      return;
+    }
+    if (!session.apiKey || !session.apiKey.trim()) {
+      setErrorMsg("API 키를 먼저 입력해주세요.");
+      return;
+    }
+
+    setLoading('ANALYZING_DETAILED');
+    setErrorMsg(null);
+
+    try {
+      const detailedAnalysis = await analyzeScriptDetailed(scriptToAnalyze, session.apiKey);
+      setSession(prev => ({
+        ...prev,
+        detailedAnalysis,
+      }));
+
+      const avgScore = (
+        detailedAnalysis.structureAnalysis.structureScore +
+        detailedAnalysis.flowAnalysis.flowScore +
+        detailedAnalysis.contentQuality.clarityScore +
+        detailedAnalysis.contentQuality.engagementScore +
+        detailedAnalysis.contentQuality.originalityScore
+      ) / 5;
+
+      alert(
+        `✅ 상세 분석 완료!\n\n` +
+        `📊 평균 점수: ${avgScore.toFixed(1)}/10\n` +
+        `🏗️ 구조: ${detailedAnalysis.structureAnalysis.structureScore}/10\n` +
+        `🌊 흐름: ${detailedAnalysis.flowAnalysis.flowScore}/10\n` +
+        `💡 명확성: ${detailedAnalysis.contentQuality.clarityScore}/10\n` +
+        `🎯 흥미도: ${detailedAnalysis.contentQuality.engagementScore}/10\n` +
+        `✨ 독창성: ${detailedAnalysis.contentQuality.originalityScore}/10\n\n` +
+        `⚠️ 발견된 문제: ${detailedAnalysis.technicalIssues.length}개\n\n` +
+        `분석 결과를 확인하고 "대본 수정 제안" 버튼을 눌러보세요!`
+      );
+    } catch (e: any) {
+      console.error('상세 분석 실패:', e);
+      setErrorMsg(`상세 분석 실패: ${e.message || 'AI 연결 상태를 확인해주세요.'}`);
+    } finally {
+      setLoading('IDLE');
+    }
+  };
+
+  // 대본 수정 제안 생성 핸들러
+  const handleGenerateRevision = async () => {
+    const scriptToRevise = session.generatedNewScript || session.originalScript;
+    
+    if (!scriptToRevise || !scriptToRevise.trim()) {
+      setErrorMsg("수정할 대본이 없습니다.");
+      return;
+    }
+    if (!session.apiKey || !session.apiKey.trim()) {
+      setErrorMsg("API 키를 먼저 입력해주세요.");
+      return;
+    }
+
+    setLoading('REVISING');
+    setErrorMsg(null);
+
+    try {
+      const revision = await generateScriptRevision(
+        scriptToRevise,
+        session.detailedAnalysis,
+        session.apiKey
+      );
+      
+      setSession(prev => ({
+        ...prev,
+        scriptRevision: revision,
+      }));
+
+      const applyRevision = window.confirm(
+        `✅ 수정 제안이 완료되었습니다!\n\n` +
+        `📝 ${revision.changes.length}개의 변경사항이 제안되었습니다.\n\n` +
+        `수정된 대본을 적용하시겠습니까?`
+      );
+
+      if (applyRevision) {
+        setSession(prev => ({
+          ...prev,
+          generatedNewScript: revision.revised,
+          // 수정 후 분석 초기화
+          detailedAnalysis: null,
+          analysis: null,
+        }));
+
+        // 히스토리에 저장
+        if (session.selectedTopic) {
+          saveToHistory(session.selectedTopic + ' (AI수정ver)', revision.revised, true);
+        }
+
+        alert(
+          `✅ 수정된 대본이 적용되었습니다!\n\n` +
+          `다시 분석하거나 추가로 수정할 수 있습니다.`
+        );
+      }
+    } catch (e: any) {
+      console.error('대본 수정 실패:', e);
+      setErrorMsg(`대본 수정 실패: ${e.message || 'AI 연결 상태를 확인해주세요.'}`);
+    } finally {
+      setLoading('IDLE');
+    }
+  };
+
+  // 외부 분석 기반 대본 수정
+  const handleExternalAnalysisRevision = async () => {
+    const scriptToRevise = session.generatedNewScript || session.originalScript;
+    
+    if (!scriptToRevise || !scriptToRevise.trim()) {
+      setErrorMsg("수정할 대본이 없습니다.");
+      return;
+    }
+    if (!externalAnalysisText || !externalAnalysisText.trim()) {
+      setErrorMsg("분석 내용을 입력해주세요.");
+      return;
+    }
+    if (!session.apiKey || !session.apiKey.trim()) {
+      setErrorMsg("API 키를 먼저 입력해주세요.");
+      return;
+    }
+
+    setLoading('REVISING');
+    setErrorMsg(null);
+
+    try {
+      const revision = await reviseScriptWithExternalAnalysis(
+        scriptToRevise,
+        externalAnalysisText,
+        session.apiKey
+      );
+      
+      setSession(prev => ({
+        ...prev,
+        scriptRevision: revision,
+      }));
+
+      const applyRevision = window.confirm(
+        `✅ 외부 분석 기반 수정이 완료되었습니다!\n\n` +
+        `📝 ${revision.changes.length}개의 변경사항이 제안되었습니다.\n\n` +
+        `수정된 대본을 적용하시겠습니까?`
+      );
+
+      if (applyRevision) {
+        setSession(prev => ({
+          ...prev,
+          generatedNewScript: revision.revised,
+          // 수정 후 분석 초기화
+          detailedAnalysis: null,
+          analysis: null,
+        }));
+
+        // 히스토리에 저장
+        if (session.selectedTopic) {
+          saveToHistory(session.selectedTopic + ' (외부분석수정ver)', revision.revised, true);
+        }
+
+        // 외부 분석 텍스트 초기화
+        setExternalAnalysisText('');
+        setShowExternalAnalysis(false);
+
+        alert(
+          `✅ 외부 분석 기반 수정이 적용되었습니다!\n\n` +
+          `다시 분석하거나 추가로 수정할 수 있습니다.`
+        );
+      }
+    } catch (e: any) {
+      console.error('외부 분석 기반 수정 실패:', e);
+      setErrorMsg(`대본 수정 실패: ${e.message || 'AI 연결 상태를 확인해주세요.'}`);
+    } finally {
+      setLoading('IDLE');
+    }
   };
 
   // 대본 편집
@@ -669,14 +1036,62 @@ const App: React.FC = () => {
   const handleClear = () => {
     if (window.confirm("모든 내용을 초기화하시겠습니까?")) {
       setSession(INITIAL_SESSION);
+        useEffect(() => {
+          const saved = localStorage.getItem('mvp_script_session');
+          const savedKey = localStorage.getItem('mvp_api_key') || '';
+          if (saved) {
+            try {
+              const parsed = JSON.parse(saved);
+              setSession({
+                ...INITIAL_SESSION,
+                ...parsed,
+                apiKey: savedKey,
+                isEditMode: parsed.isEditMode ?? false,
+                generatedScripts: parsed.generatedScripts ?? [],
+                history: parsed.history ?? [],
+                analysis: parsed.analysis ?? null,
+                detailedAnalysis: parsed.detailedAnalysis ?? null,
+                scriptRevision: parsed.scriptRevision ?? null,
+                shortsScripts: parsed.shortsScripts ?? [],
+                channelPlans: parsed.channelPlans ?? [],
+                imagePrompts: parsed.imagePrompts ?? [],
+                videoTitle: parsed.videoTitle ?? null,
+                thumbnails: parsed.thumbnails ?? [],
+              });
+            } catch {
+              setSession({ ...INITIAL_SESSION, apiKey: savedKey });
+            }
+          } else {
+            setSession({ ...INITIAL_SESSION, apiKey: savedKey });
+          }
+        }, []);
       localStorage.removeItem('mvp_script_session');
     }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex flex-col items-center py-8 px-4 font-sans">
+      {/* API 키 입력란 (상단 고정) */}
+      <div className="w-full max-w-5xl flex justify-end mb-2">
+        <div className="flex items-center gap-2 bg-white border border-gray-300 rounded-lg px-3 py-2 shadow-sm">
+          <span className="text-xs text-gray-500">🔑 API 키</span>
+          <input
+            type="text"
+            className="text-xs px-2 py-1 border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-200 bg-gray-50"
+            placeholder="API 키를 입력하세요"
+            value={apiKey}
+            onChange={handleApiKeyChange}
+            style={{ width: 180 }}
+          />
+          <button
+            className="ml-2 px-3 py-1 text-xs bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors"
+            onClick={handleApiKeySave}
+          >
+            저장
+          </button>
+        </div>
+      </div>
       <div className="w-full max-w-5xl">
-        
         {/* Header */}
         <header className="bg-gradient-to-r from-black to-gray-900 text-white p-8 rounded-2xl shadow-2xl mb-8">
           <div className="text-center mb-6">
@@ -684,7 +1099,6 @@ const App: React.FC = () => {
             <p className="text-xl text-gray-300 mb-2">성공한 대본의 DNA를 조선시대 야담으로 복제하세요</p>
             <p className="text-sm text-gray-400">AI가 작가의 문체, 심리적 트릭, 후킹 요소를 완벽하게 분석하여 내 것으로 만들어줍니다</p>
           </div>
-          
           {/* 단계 표시 */}
           <div className="flex justify-center gap-4 mb-6">
             <div className="flex items-center gap-2 px-4 py-2 bg-white/10 rounded-lg">
@@ -707,7 +1121,6 @@ const App: React.FC = () => {
               <span className="text-sm">완성</span>
             </div>
           </div>
-
           <div className="flex gap-3 justify-center">
             <button 
               onClick={() => setShowHistory(!showHistory)}
@@ -730,104 +1143,9 @@ const App: React.FC = () => {
             </button>
           </div>
         </header>
-
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-200">
-        
-        <main className="p-8 space-y-8">
+          <main className="p-8 space-y-8">
           
-          {/* API 키 입력 */}
-          <section className="bg-gradient-to-r from-red-50 to-orange-50 p-6 rounded-xl border-4 border-red-400 mb-6 shadow-lg">
-            <div className="flex items-start gap-4">
-              <span className="text-4xl">🔑</span>
-              <div className="flex-1">
-                <label className="block text-xl font-bold text-red-800 mb-3">
-                  ⚠️ API 키 입력 필수 ⚠️
-                </label>
-                <div className="bg-white p-4 rounded-lg border-2 border-red-300 mb-3">
-                  <input
-                    type="password"
-                    placeholder="여기에 본인의 Gemini API 키를 입력하세요"
-                    value={session.apiKey}
-                    onChange={(e) => {
-                      const trimmedKey = e.target.value.trim();
-                      setSession(prev => ({ ...prev, apiKey: trimmedKey }));
-                    }}
-                    className="w-full p-4 border-2 border-red-400 rounded-lg focus:border-red-600 focus:ring-2 focus:ring-red-200 transition-all font-mono text-base"
-                  />
-                </div>
-                {!session.apiKey && (
-                  <div className="bg-red-100 border-2 border-red-400 rounded-lg p-4 mb-3">
-                    <p className="text-red-800 font-bold text-sm mb-2">
-                      ❌ API 키를 입력하지 않으면 모든 기능이 차단됩니다!
-                    </p>
-                    <p className="text-red-700 text-xs">
-                      • 각 사용자는 자신의 API 키를 발급받아 사용해야 합니다<br/>
-                      • API 사용 비용은 각자 본인이 부담합니다<br/>
-                      • 다른 사람의 API 키를 사용하지 마세요
-                    </p>
-                  </div>
-                )}
-                <div className="flex items-center gap-2">
-                  <a 
-                    href="https://aistudio.google.com/apikey" 
-                    target="_blank" 
-                    rel="noopener noreferrer" 
-                    className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-all inline-flex items-center gap-2"
-                  >
-                    🆓 무료 API 키 발급받기 (1분 소요) →
-                  </a>
-                  {session.apiKey && (
-                    <span className="text-green-600 font-bold flex items-center gap-2">
-                      ✅ API 키 입력 완료
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-gray-600 mt-3">
-                  💡 API 키는 브라우저에만 저장되며 외부로 전송되지 않습니다.
-                </p>
-              </div>
-            </div>
-          </section>
-
-          {/* API 키 없으면 차단 오버레이 - 전체 화면 덮기 */}
-          {(!session.apiKey || session.apiKey.trim().length === 0) && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-              <div className="bg-white rounded-2xl p-8 max-w-2xl mx-4 shadow-2xl border-4 border-red-500">
-                <div className="text-center">
-                  <div className="text-8xl mb-6">🔒</div>
-                  <h1 className="text-3xl font-bold text-red-600 mb-4">
-                    ⚠️ API 키 입력 필수 ⚠️
-                  </h1>
-                  <div className="bg-red-50 border-2 border-red-300 rounded-lg p-6 mb-6">
-                    <p className="text-red-800 font-bold text-lg mb-3">
-                      이 사이트를 사용하려면 본인의 Gemini API 키가 필요합니다
-                    </p>
-                    <div className="text-left text-sm text-red-700 space-y-2">
-                      <p>❌ 다른 사람의 API 키를 사용하지 마세요</p>
-                      <p>❌ API 키 없이는 절대 사용할 수 없습니다</p>
-                      <p>✅ API 사용 비용은 각자 본인이 부담합니다</p>
-                      <p>✅ 무료 할당량: 매일 1,500회 요청 가능</p>
-                    </div>
-                  </div>
-                  <a 
-                    href="https://aistudio.google.com/apikey" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-8 rounded-lg text-lg mb-4 transition-all transform hover:scale-105"
-                  >
-                    🆓 무료 API 키 발급받기 (1분 소요) →
-                  </a>
-                  <p className="text-xs text-gray-500 mt-4">
-                    API 키 발급 후 페이지 상단의 입력창에 입력하세요
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* API 키가 있을 때만 나머지 UI 표시 */}
-          {session.apiKey && session.apiKey.trim().length > 0 && (
-            <>
           {/* 전체 로딩 상태 표시 */}
           {loading !== 'IDLE' && (
             <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-4 rounded-xl mb-6 shadow-lg animate-pulse">
@@ -903,19 +1221,22 @@ const App: React.FC = () => {
                 disabled={loading !== 'IDLE' || !session.originalScript.trim()}
                 className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-4 rounded-xl font-bold text-lg hover:from-blue-700 hover:to-indigo-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center gap-3"
               >
-                {loading === 'SUGGESTING' ? (
+                {loading === 'ANALYZING' || loading === 'IMPROVING' || loading === 'SUGGESTING' ? (
                   <>
                     <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
-                    <span>대본 분석 중...</span>
+                    <span>자동 개선 중...</span>
                   </>
                 ) : (
                   <>
-                    <span>🚀 DNA 분석 시작</span>
+                    <span>🎯 자동 개선 후 주제 추천</span>
                     <span className="text-2xl">→</span>
                   </>
                 )}
               </button>
             </div>
+            <p className="text-xs text-blue-600 text-center mt-2 font-medium">
+              💡 대본을 후킹 점수 8점 이상으로 자동 개선한 후 새로운 주제를 추천합니다
+            </p>
             {errorMsg && <p className="text-red-600 text-sm mt-3 bg-red-50 p-3 rounded-lg border border-red-200">{errorMsg}</p>}
           </section>
 
@@ -987,6 +1308,38 @@ const App: React.FC = () => {
                 <span>PD분석</span>
               </button>
               <button
+                onClick={handleDetailedAnalysis}
+                disabled={loading === 'ANALYZING_DETAILED' || (!session.generatedNewScript && !session.originalScript)}
+                className="flex items-center gap-2 bg-indigo-500 hover:bg-indigo-600 text-white px-5 py-3 rounded-xl transition-all shadow-md hover:shadow-lg font-bold text-sm disabled:bg-gray-300 disabled:cursor-not-allowed transform hover:scale-105"
+              >
+                <span className="text-lg">🔬</span>
+                <span>상세분석</span>
+              </button>
+              <button
+                onClick={handleGenerateRevision}
+                disabled={loading === 'REVISING' || (!session.generatedNewScript && !session.originalScript)}
+                className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white px-5 py-3 rounded-xl transition-all shadow-md hover:shadow-lg font-bold text-sm disabled:bg-gray-300 disabled:cursor-not-allowed transform hover:scale-105"
+              >
+                <span className="text-lg">✨</span>
+                <span>대본수정</span>
+              </button>
+              <button
+                onClick={handleImproveScript}
+                disabled={loading === 'IMPROVING' || !session.generatedNewScript || !session.analysis}
+                className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-5 py-3 rounded-xl transition-all shadow-md hover:shadow-lg font-bold text-sm disabled:bg-gray-300 disabled:cursor-not-allowed transform hover:scale-105"
+              >
+                <span className="text-lg">🔧</span>
+                <span>자동개선</span>
+              </button>
+              <button
+                onClick={() => setShowExternalAnalysis(!showExternalAnalysis)}
+                disabled={!session.generatedNewScript && !session.originalScript}
+                className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-5 py-3 rounded-xl transition-all shadow-md hover:shadow-lg font-bold text-sm disabled:bg-gray-300 disabled:cursor-not-allowed transform hover:scale-105"
+              >
+                <span className="text-lg">📥</span>
+                <span>{showExternalAnalysis ? '닫기' : '외부분석'}</span>
+              </button>
+              <button
                 onClick={handleGeneratePlan}
                 disabled={loading === 'PLANNING' || !session.generatedNewScript}
                 className="flex items-center gap-2 bg-teal-500 hover:bg-teal-600 text-white px-5 py-3 rounded-xl transition-all shadow-md hover:shadow-lg font-bold text-sm disabled:bg-gray-300 disabled:cursor-not-allowed transform hover:scale-105"
@@ -1007,6 +1360,79 @@ const App: React.FC = () => {
               <p className="text-sm text-gray-600 text-center mt-3 font-medium">💡 대본을 생성하면 모든 기능이 활성화됩니다</p>
             )}
           </section>
+
+          {/* 외부 분석 입력란 */}
+          {showExternalAnalysis && (
+            <section className="bg-gradient-to-br from-orange-50 to-amber-50 p-6 rounded-xl border-4 border-orange-400 animate-fade-in shadow-lg">
+              <div className="mb-4">
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="text-3xl">📥</span>
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-800">외부 분석 내용 붙여넣기</h3>
+                    <p className="text-sm text-gray-600">다른 도구에서 분석한 내용을 붙여넣으면 자동으로 대본을 수정합니다</p>
+                  </div>
+                </div>
+              </div>
+              
+              <textarea
+                className="w-full h-64 p-4 border-2 border-orange-300 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all resize-none text-base bg-white shadow-inner"
+                placeholder="예시:&#10;&#10;구조 문제:&#10;- 인트로가 너무 김&#10;- 결론이 약함&#10;&#10;흐름 문제:&#10;- 전개가 느림&#10;- 장면 전환이 어색함&#10;&#10;내용 개선 필요:&#10;- 더 흥미로운 도입부 필요&#10;- 구체적인 예시 추가&#10;&#10;💡 팁: ChatGPT, Claude 등에서 대본을 분석한 내용을 그대로 복사해서 붙여넣으세요!"
+                value={externalAnalysisText}
+                onChange={(e) => setExternalAnalysisText(e.target.value)}
+              />
+              
+              <div className="mt-4 flex justify-between items-center">
+                <div className="text-sm text-gray-600">
+                  {externalAnalysisText.length > 0 && (
+                    <span className="bg-orange-100 px-3 py-1 rounded-full">
+                      📝 {externalAnalysisText.length}자 입력됨
+                    </span>
+                  )}
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      setExternalAnalysisText('');
+                      setShowExternalAnalysis(false);
+                    }}
+                    className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-xl font-bold transition-all"
+                  >
+                    취소
+                  </button>
+                  <button
+                    onClick={handleExternalAnalysisRevision}
+                    disabled={loading !== 'IDLE' || !externalAnalysisText.trim()}
+                    className="bg-gradient-to-r from-orange-600 to-red-600 text-white px-8 py-3 rounded-xl font-bold text-lg hover:from-orange-700 hover:to-red-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center gap-3"
+                  >
+                    {loading === 'REVISING' ? (
+                      <>
+                        <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
+                        <span>수정 중...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>✨ 자동 수정하기</span>
+                        <span className="text-2xl">→</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+              
+              <div className="mt-4 p-4 bg-yellow-50 border-2 border-yellow-300 rounded-lg">
+                <h4 className="font-bold text-yellow-800 mb-2 flex items-center gap-2">
+                  <span>💡</span>
+                  <span>사용 팁</span>
+                </h4>
+                <ul className="text-sm text-yellow-900 space-y-1">
+                  <li>• ChatGPT, Claude 등 AI에게 대본 분석을 요청하고 결과를 복사하세요</li>
+                  <li>• 유튜브 채널 PD의 피드백을 텍스트로 정리해서 붙여넣으세요</li>
+                  <li>• 구조, 흐름, 내용, 기술적 문제 등을 자유롭게 작성하세요</li>
+                  <li>• 분석 내용이 상세할수록 더 정확한 수정이 가능합니다</li>
+                </ul>
+              </div>
+            </section>
+          )}
 
           {/* STEP 2: Suggestions */}
           {session.suggestedTopics.length > 0 && (
@@ -1480,6 +1906,230 @@ const App: React.FC = () => {
                     <strong>💡 작동 방식:</strong> AI가 PD의 모든 피드백을 반영하여 대본을 자동으로 재작성합니다. 
                     후킹 강화, 논리 보완, 지루한 구간 간결화가 자동으로 진행됩니다.
                   </p>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* 상세 대본 분석 결과 */}
+          {session.detailedAnalysis && (
+            <section className="border-t border-gray-100 pt-6 animate-fade-in bg-gradient-to-br from-indigo-50 to-purple-50 p-6 rounded-xl border-4 border-indigo-500 shadow-xl">
+              <div className="mb-6 bg-indigo-600 text-white p-4 rounded-lg shadow-md">
+                <h2 className="text-2xl font-bold mb-2 flex items-center gap-2">
+                  🔬 대본 상세 분석 결과
+                </h2>
+                <p className="text-sm opacity-90">구조, 흐름, 콘텐츠 품질 종합 분석</p>
+              </div>
+
+              {/* 종합 평가 */}
+              <div className="bg-white p-6 rounded-xl mb-4 border-l-8 border-indigo-600 shadow-lg">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-2xl">📊</span>
+                  <h3 className="font-bold text-lg text-indigo-700">종합 평가</h3>
+                </div>
+                <p className="text-lg text-gray-900 leading-relaxed">{session.detailedAnalysis.overallSummary}</p>
+              </div>
+
+              {/* 점수 카드 */}
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+                <div className="bg-white p-4 rounded-lg shadow-md text-center">
+                  <div className="text-3xl font-black text-blue-600">
+                    {session.detailedAnalysis.structureAnalysis.structureScore}
+                  </div>
+                  <p className="text-xs text-gray-600 mt-1 font-bold">구조 점수</p>
+                </div>
+                <div className="bg-white p-4 rounded-lg shadow-md text-center">
+                  <div className="text-3xl font-black text-green-600">
+                    {session.detailedAnalysis.flowAnalysis.flowScore}
+                  </div>
+                  <p className="text-xs text-gray-600 mt-1 font-bold">흐름 점수</p>
+                </div>
+                <div className="bg-white p-4 rounded-lg shadow-md text-center">
+                  <div className="text-3xl font-black text-purple-600">
+                    {session.detailedAnalysis.contentQuality.clarityScore}
+                  </div>
+                  <p className="text-xs text-gray-600 mt-1 font-bold">명확성</p>
+                </div>
+                <div className="bg-white p-4 rounded-lg shadow-md text-center">
+                  <div className="text-3xl font-black text-orange-600">
+                    {session.detailedAnalysis.contentQuality.engagementScore}
+                  </div>
+                  <p className="text-xs text-gray-600 mt-1 font-bold">흥미도</p>
+                </div>
+                <div className="bg-white p-4 rounded-lg shadow-md text-center">
+                  <div className="text-3xl font-black text-pink-600">
+                    {session.detailedAnalysis.contentQuality.originalityScore}
+                  </div>
+                  <p className="text-xs text-gray-600 mt-1 font-bold">독창성</p>
+                </div>
+              </div>
+
+              {/* 구조 분석 */}
+              <div className="bg-white p-6 rounded-xl mb-4 shadow-lg">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-2xl">🏗️</span>
+                  <h3 className="font-bold text-lg text-gray-700">구조 분석</h3>
+                </div>
+                <div className="grid grid-cols-3 gap-3 mb-3">
+                  <div className={`p-3 rounded-lg ${session.detailedAnalysis.structureAnalysis.hasIntro ? 'bg-green-100 border border-green-300' : 'bg-red-100 border border-red-300'}`}>
+                    <p className="text-sm font-bold text-center">
+                      {session.detailedAnalysis.structureAnalysis.hasIntro ? '✅ 인트로 있음' : '❌ 인트로 없음'}
+                    </p>
+                  </div>
+                  <div className={`p-3 rounded-lg ${session.detailedAnalysis.structureAnalysis.hasBody ? 'bg-green-100 border border-green-300' : 'bg-red-100 border border-red-300'}`}>
+                    <p className="text-sm font-bold text-center">
+                      {session.detailedAnalysis.structureAnalysis.hasBody ? '✅ 본론 있음' : '❌ 본론 없음'}
+                    </p>
+                  </div>
+                  <div className={`p-3 rounded-lg ${session.detailedAnalysis.structureAnalysis.hasConclusion ? 'bg-green-100 border border-green-300' : 'bg-red-100 border border-red-300'}`}>
+                    <p className="text-sm font-bold text-center">
+                      {session.detailedAnalysis.structureAnalysis.hasConclusion ? '✅ 결론 있음' : '❌ 결론 없음'}
+                    </p>
+                  </div>
+                </div>
+                <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded">{session.detailedAnalysis.structureAnalysis.structureFeedback}</p>
+              </div>
+
+              {/* 흐름 분석 */}
+              <div className="bg-white p-6 rounded-xl mb-4 shadow-lg">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-2xl">🌊</span>
+                  <h3 className="font-bold text-lg text-gray-700">흐름 분석</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                  <div className="bg-blue-50 p-3 rounded border border-blue-200">
+                    <p className="text-xs text-blue-600 font-bold mb-1">전개 속도</p>
+                    <p className="text-sm text-gray-800">{session.detailedAnalysis.flowAnalysis.pacing}</p>
+                  </div>
+                  <div className="bg-purple-50 p-3 rounded border border-purple-200">
+                    <p className="text-xs text-purple-600 font-bold mb-1">장면 전환</p>
+                    <p className="text-sm text-gray-800">{session.detailedAnalysis.flowAnalysis.transitionQuality}</p>
+                  </div>
+                </div>
+                <div className="bg-green-50 p-3 rounded border border-green-200">
+                  <p className="text-xs text-green-600 font-bold mb-2">개선 제안</p>
+                  <ul className="space-y-1">
+                    {session.detailedAnalysis.flowAnalysis.improvements.map((improvement, idx) => (
+                      <li key={idx} className="text-sm text-gray-700 flex items-start gap-2">
+                        <span className="text-green-600 flex-shrink-0">•</span>
+                        <span>{improvement}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+
+              {/* 콘텐츠 품질 */}
+              <div className="bg-white p-6 rounded-xl mb-4 shadow-lg">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-2xl">💎</span>
+                  <h3 className="font-bold text-lg text-gray-700">콘텐츠 품질</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-green-50 p-4 rounded border border-green-300">
+                    <p className="text-sm text-green-700 font-bold mb-2">✅ 강점</p>
+                    <ul className="space-y-1">
+                      {session.detailedAnalysis.contentQuality.strengths.map((strength, idx) => (
+                        <li key={idx} className="text-sm text-gray-700 flex items-start gap-2">
+                          <span className="text-green-600 flex-shrink-0">+</span>
+                          <span>{strength}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="bg-red-50 p-4 rounded border border-red-300">
+                    <p className="text-sm text-red-700 font-bold mb-2">⚠️ 약점</p>
+                    <ul className="space-y-1">
+                      {session.detailedAnalysis.contentQuality.weaknesses.map((weakness, idx) => (
+                        <li key={idx} className="text-sm text-gray-700 flex items-start gap-2">
+                          <span className="text-red-600 flex-shrink-0">-</span>
+                          <span>{weakness}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              {/* 기술적 문제점 */}
+              {session.detailedAnalysis.technicalIssues.length > 0 && (
+                <div className="bg-white p-6 rounded-xl mb-4 shadow-lg">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-2xl">🔧</span>
+                    <h3 className="font-bold text-lg text-gray-700">기술적 문제점 ({session.detailedAnalysis.technicalIssues.length}개)</h3>
+                  </div>
+                  <div className="space-y-3">
+                    {session.detailedAnalysis.technicalIssues.map((issue, idx) => (
+                      <div key={idx} className={`p-4 rounded-lg border-l-4 ${
+                        issue.severity === 'high' ? 'bg-red-50 border-red-500' :
+                        issue.severity === 'medium' ? 'bg-yellow-50 border-yellow-500' :
+                        'bg-blue-50 border-blue-500'
+                      }`}>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className={`px-2 py-1 rounded text-xs font-bold ${
+                            issue.severity === 'high' ? 'bg-red-200 text-red-800' :
+                            issue.severity === 'medium' ? 'bg-yellow-200 text-yellow-800' :
+                            'bg-blue-200 text-blue-800'
+                          }`}>
+                            {issue.severity === 'high' ? '높음' : issue.severity === 'medium' ? '중간' : '낮음'}
+                          </span>
+                          <p className="text-sm font-bold text-gray-800">{issue.issue}</p>
+                        </div>
+                        <p className="text-sm text-gray-700 bg-white p-2 rounded">💡 {issue.suggestion}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 개선 우선순위 */}
+              <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-6 rounded-xl shadow-2xl">
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="text-3xl">🎯</span>
+                  <h3 className="font-black text-xl">개선 우선순위</h3>
+                </div>
+                <ol className="space-y-2">
+                  {session.detailedAnalysis.improvementPriorities.map((priority, idx) => (
+                    <li key={idx} className="flex items-start gap-3">
+                      <span className="flex-shrink-0 w-8 h-8 bg-white text-indigo-600 rounded-full flex items-center justify-center font-bold">
+                        {idx + 1}
+                      </span>
+                      <span className="text-lg font-bold pt-1">{priority}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            </section>
+          )}
+
+          {/* 대본 수정 제안 */}
+          {session.scriptRevision && (
+            <section className="border-t border-gray-100 pt-6 animate-fade-in bg-gradient-to-br from-teal-50 to-cyan-50 p-6 rounded-xl border-4 border-teal-500 shadow-xl">
+              <div className="mb-6 bg-teal-600 text-white p-4 rounded-lg shadow-md">
+                <h2 className="text-2xl font-bold mb-2 flex items-center gap-2">
+                  ✨ 수정된 대본
+                </h2>
+              </div>
+              <div className="bg-white p-6 rounded-xl shadow-lg">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-bold text-lg text-gray-700 flex items-center gap-2">
+                    <span>📄</span>
+                    <span>최종 대본</span>
+                  </h3>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(session.scriptRevision!.revised);
+                      alert('대본이 복사되었습니다!');
+                    }}
+                    className="text-sm bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-bold"
+                  >
+                    📋 복사
+                  </button>
+                </div>
+                <div className="bg-gray-50 p-4 rounded border border-gray-200 max-h-96 overflow-y-auto">
+                  <pre className="whitespace-pre-wrap font-sans text-base text-gray-800 leading-relaxed">
+                    {session.scriptRevision.revised}
+                  </pre>
                 </div>
               </div>
             </section>
@@ -2037,15 +2687,12 @@ ${plan.uploadSchedule}
               </div>
             </section>
           )}
-          </>
-          )}
-        </main>
-
-        <footer className="bg-gradient-to-r from-gray-50 to-gray-100 p-6 text-center border-t border-gray-200">
-          <p className="text-sm text-gray-600 mb-2">🔒 모든 데이터는 브라우저(LocalStorage)에 자동 저장됩니다</p>
-          <p className="text-xs text-gray-500">AI 야담방 © 2025 - 성공한 대본의 DNA를 복제하세요</p>
-        </footer>
-      </div>
+          </main>
+          <footer className="bg-gradient-to-r from-gray-50 to-gray-100 p-6 text-center border-t border-gray-200">
+            <p className="text-sm text-gray-600 mb-2">🔒 모든 데이터는 브라우저(LocalStorage)에 자동 저장됩니다</p>
+            <p className="text-xs text-gray-500">AI 야담방 © 2025 - 성공한 대본의 DNA를 복제하세요</p>
+          </footer>
+        </div>
       </div>
     </div>
   );

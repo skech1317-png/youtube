@@ -1,7 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { ChannelPlan } from "../types";
 
-const MODEL_NAME = 'gemini-2.5-flash';
+const MODEL_NAME = 'gemini-2.0-flash-exp';
 
 // API 키를 받아서 AI 인스턴스 생성
 const getAI = (apiKey: string) => new GoogleGenAI({ apiKey });

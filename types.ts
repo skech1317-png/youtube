@@ -33,6 +33,51 @@ export interface ScriptAnalysis {
   actionPlan: string; // 당장 고쳐야 할 1가지
 }
 
+// 상세 대본 분석 결과
+export interface DetailedScriptAnalysis {
+  structureAnalysis: {
+    hasIntro: boolean; // 인트로 유무
+    hasBody: boolean; // 본론 유무
+    hasConclusion: boolean; // 결론 유무
+    structureScore: number; // 구조 점수 (0-10)
+    structureFeedback: string; // 구조 피드백
+  };
+  flowAnalysis: {
+    flowScore: number; // 흐름 점수 (0-10)
+    pacing: string; // 전개 속도 평가
+    transitionQuality: string; // 장면 전환 평가
+    improvements: string[]; // 개선 제안
+  };
+  contentQuality: {
+    clarityScore: number; // 명확성 점수 (0-10)
+    engagementScore: number; // 흥미도 점수 (0-10)
+    originalityScore: number; // 독창성 점수 (0-10)
+    strengths: string[]; // 강점
+    weaknesses: string[]; // 약점
+  };
+  technicalIssues: Array<{
+    lineNumber?: number; // 문제 발생 라인
+    issue: string; // 문제점
+    severity: 'high' | 'medium' | 'low'; // 심각도
+    suggestion: string; // 수정 제안
+  }>;
+  overallSummary: string; // 종합 평가
+  improvementPriorities: string[]; // 개선 우선순위 (1-3개)
+}
+
+// 대본 수정 제안
+export interface ScriptRevision {
+  original: string; // 원본 대본
+  revised: string; // 수정된 대본
+  changes: Array<{
+    type: 'structure' | 'flow' | 'content' | 'technical'; // 수정 타입
+    original: string; // 원본 부분
+    revised: string; // 수정된 부분
+    reason: string; // 수정 이유
+  }>;
+  summary: string; // 수정 요약
+}
+
 // 숏츠용 대본
 export interface ShortsScript {
   id: string;
@@ -84,6 +129,8 @@ export interface ScriptSession {
   generatedScripts: GeneratedScript[]; // 여러 버전 비교용
   history: ScriptHistoryItem[]; // 대본 히스토리
   analysis: ScriptAnalysis | null; // PD 분석 결과
+  detailedAnalysis: DetailedScriptAnalysis | null; // 상세 분석 결과
+  scriptRevision: ScriptRevision | null; // 대본 수정 제안
   shortsScripts: ShortsScript[]; // 숏츠 대본들
   channelPlans: ChannelPlan[]; // 채널 기획서들
   imagePrompts: ImagePrompt[]; // 등장인물 이미지 프롬프트
@@ -102,6 +149,8 @@ export const INITIAL_SESSION: ScriptSession = {
   generatedScripts: [],
   history: [],
   analysis: null,
+  detailedAnalysis: null,
+  scriptRevision: null,
   shortsScripts: [],
   channelPlans: [],
   imagePrompts: [],
